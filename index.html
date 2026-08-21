@@ -1856,7 +1856,7 @@
     if(!cv || !cv.getContext) return;
     var ctx = cv.getContext('2d');
     var demo = document.getElementById('demo');
-    var stars = [], W = 0, H = 0, demoTarget = 1;
+    var stars = [], W = 0, H = 0, demoTarget = 1, demoEnd = 2;
     var wasNight = false, staticDrawn = false;
 
     function isNight(){ return document.documentElement.getAttribute('data-theme') !== 'light'; }
@@ -1884,20 +1884,35 @@
         var r = demo.getBoundingClientRect();
         /* scrollY at which the video "hits" (fills most of the viewport) */
         demoTarget = Math.max(1, r.top + window.scrollY - H * .55);
+        /* scrollY at which the video starts leaving — reverse morph begins */
+        demoEnd = Math.max(demoTarget + 1, r.bottom + window.scrollY - H * 1.05);
       }
       staticDrawn = false;
     }
 
     function render(now){
       var t = now / 1000;
-      /* Warp: eases 0 → 1 across the scroll from page top to the video,
-         then fades back out over one viewport once the video has hit. */
-      var p = Math.min(1, Math.max(0, window.scrollY / demoTarget));
-      var warp = p * p * (3 - 2 * p);
-      if(window.scrollY > demoTarget){
-        warp *= Math.max(0, 1 - (window.scrollY - demoTarget) / H);
+      /* Warp envelope:
+           entry  — eases 0 → 1 from page top to the video, stars fly OUTWARD
+           video  — fades to calm over one viewport while the video holds
+           exit   — plays in REVERSE as the video leaves: full warp easing
+                    back to still points, stars streaking/drifting INWARD,
+                    like dropping out of hyperspace on the other side.
+         dir is +1 outward (entry), -1 inward (exit). */
+      var warp = 0, dir = 1, sy = window.scrollY;
+      if(sy <= demoTarget){
+        var p = Math.min(1, Math.max(0, sy / demoTarget));
+        warp = p * p * (3 - 2 * p);
+      } else if(sy < demoEnd){
+        warp = Math.max(0, 1 - (sy - demoTarget) / H);
+      } else {
+        var q = Math.min(1, (sy - demoEnd) / (H * 1.4));
+        q = q * q * (3 - 2 * q);
+        /* quick ramp-in as the video clears, then a long ease back to calm */
+        warp = Math.min(1, (sy - demoEnd) / (H * .18)) * (1 - q);
+        dir = -1;
       }
-      if(reduce) warp = 0;
+      if(reduce){ warp = 0; dir = 1; }
 
       ctx.clearRect(0, 0, W, H);
       var cx = W / 2, cy = H / 2;
@@ -1909,13 +1924,18 @@
         var d = Math.hypot(dx, dy) || 1;
         var edge = d / maxD; /* 0 centre → 1 corner */
         if(warp > .01){
-          /* Slow outward drift — stars respawn near centre, like flying through */
-          var v = warp * warp * (.15 + edge * 1.6);
+          /* Drift along the warp direction; respawn on the far side so the
+             flow feels continuous — outward from centre, inward from the rim */
+          var v = dir * warp * warp * (.15 + edge * 1.6);
           s.x += (dx / d) * v / W;
           s.y += (dy / d) * v / H;
-          if(s.x < -.03 || s.x > 1.03 || s.y < -.03 || s.y > 1.03){
+          if(dir > 0 && (s.x < -.03 || s.x > 1.03 || s.y < -.03 || s.y > 1.03)){
             s.x = .3 + Math.abs(Math.sin((i + 1) * 12.9898 + t)) * .4;
             s.y = .3 + Math.abs(Math.sin((i + 1) * 78.233 + t)) * .4;
+          } else if(dir < 0 && edge < .05){
+            var a2 = ((i + 1) * 2.399963 + t) % 6.2832;
+            s.x = .5 + Math.cos(a2) * .52;
+            s.y = .5 + Math.sin(a2) * .52;
           }
         }
         var tw = reduce ? .85 : (.72 + .28 * Math.sin(t * s.sp + s.ph));
@@ -1926,7 +1946,8 @@
           ctx.lineWidth = s.r;
           ctx.lineCap = 'round';
           ctx.beginPath();
-          ctx.moveTo(x - (dx / d) * len, y - (dy / d) * len);
+          /* tail trails opposite the direction of travel */
+          ctx.moveTo(x - dir * (dx / d) * len, y - dir * (dy / d) * len);
           ctx.lineTo(x, y);
           ctx.stroke();
         } else {
