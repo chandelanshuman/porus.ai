@@ -517,6 +517,19 @@
   html.theme-wipe *,
   html.theme-wipe *::before,
   html.theme-wipe *::after{transition:none !important}
+  /* Bat that flies from the logo when day turns to night.
+     Dark silhouette with a faint moonlit rim so it reads on the night sky.
+     Traverse (left → offscreen right) is driven from JS; bobbing and
+     wing-flap run here as looping animations on the inner layers. */
+  .bat-fly{position:fixed; left:0; top:0; z-index:2000; pointer-events:none; will-change:transform}
+  .bat-bob{animation:bat-bob .5s ease-in-out infinite alternate}
+  .bat-fly svg{display:block; width:44px; height:auto; fill:#0B0F16; opacity:.92;
+    filter:drop-shadow(0 0 5px rgba(150,190,255,.32))}
+  .bat-wing{animation:bat-flap .15s ease-in-out infinite alternate;
+    transform-box:fill-box; transform-origin:100% 30%}
+  @keyframes bat-flap{from{transform:rotate(14deg)}to{transform:rotate(-24deg)}}
+  @keyframes bat-bob{from{transform:translateY(-5px)}to{transform:translateY(6px)}}
+
   /* Glow burst on the button — light radiating outward at the moment of the switch */
   .theme-toggle.burst{animation:tg-burst .7s ease-out}
   @keyframes tg-burst{
@@ -1706,9 +1719,44 @@
      like the button casting light (or night) across the whole page.
      Falls back to the plain switch when View Transitions aren't supported
      or the user prefers reduced motion. */
+  /* A bat slips out of the day/night toggle and flies off to the right when night falls. */
+  function flyBat(){
+    if(reduce) return;
+    var brand = document.querySelector('.theme-toggle');
+    if(!brand || !document.body.animate) return;
+    var old = document.querySelector('.bat-fly');
+    if(old) old.remove();
+    var wing = 'M47 20 C38 8 22 4 3 10 C12 15 15 20 11 27 C19 24 25 25 27 31 C33 29 39 28 45 29 Z';
+    var body = 'M50 34 C47 29 45 27 42 25 C40 21 40 15 44 12 C45 8 45 6 44 3 L48 8 C49.5 7.4 50.5 7.4 52 8 L56 3 C55 6 55 8 56 12 C60 15 60 21 58 25 C55 27 53 29 50 34 Z';
+    var el = document.createElement('div');
+    el.className = 'bat-fly';
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML =
+      '<div class="bat-bob"><svg viewBox="0 0 100 44" width="44" height="20">' +
+        '<g class="bat-wing"><path d="' + wing + '"/></g>' +
+        '<g transform="translate(100 0) scale(-1 1)"><g class="bat-wing"><path d="' + wing + '"/></g></g>' +
+        '<path d="' + body + '"/>' +
+      '</svg></div>';
+    document.body.appendChild(el);
+    var r = brand.getBoundingClientRect();
+    var x0 = r.left + r.width * .4;
+    var y0 = r.top + r.height / 2 - 12;
+    var x1 = window.innerWidth + 80;
+    var anim = el.animate([
+      {transform:'translate(' + x0 + 'px,' + y0 + 'px) scale(.6)', opacity:0},
+      {transform:'translate(' + (x0 + 36) + 'px,' + (y0 - 10) + 'px) scale(.95)', opacity:1, offset:.16},
+      {transform:'translate(' + ((x0 + x1) / 2) + 'px,' + (y0 + 16) + 'px) scale(.85)', opacity:.95, offset:.55},
+      {transform:'translate(' + x1 + 'px,' + (y0 - 28) + 'px) scale(.55)', opacity:.8}
+    ], {duration:3400, easing:'cubic-bezier(.35,.1,.65,1)'});
+    function gone(){ if(el.parentNode) el.remove(); }
+    anim.onfinish = gone;
+    setTimeout(gone, 4600); /* safety net if onfinish never fires */
+  }
+
   function revealTheme(next, btn){
     if(reduce || !document.startViewTransition){
       applyTheme(next);
+      if(next === 'dark') setTimeout(flyBat, 250);
       return;
     }
     var rect = btn.getBoundingClientRect();
@@ -1735,7 +1783,11 @@
         { duration: 750, easing: 'cubic-bezier(.3,0,.2,1)', pseudoElement: '::view-transition-new(root)' }
       );
     }).catch(function(){});
-    function cleanup(){ rootEl.classList.remove('theme-wipe'); }
+    function cleanup(){
+      rootEl.classList.remove('theme-wipe');
+      /* Night has fully fallen — release the bat from the logo */
+      if(next === 'dark') flyBat();
+    }
     vt.finished.then(cleanup, cleanup);
   }
 
