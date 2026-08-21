@@ -424,6 +424,7 @@
   .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
   .brand-mark{width:26px;height:26px;flex-shrink:0}
   .brand-name{font-size:1rem;font-weight:600;letter-spacing:-.02em}
+  .brand-ai{font-family:'SF Mono', monospace;font-size:.75em;font-weight:500;letter-spacing:.06em;color:var(--amber);margin-left:2px}
   .nav-links{display:flex;gap:6px;align-items:center}
   .nav-links a{
     font-size:.8125rem;color:var(--dim);text-decoration:none;
@@ -1121,21 +1122,29 @@
 <!-- ============================= NAV ============================= -->
 <header>
   <nav class="nav-shell" aria-label="Primary">
-    <a class="brand" href="#top" aria-label="Porus home">
-      <!-- LOGO: refined P mark. Vertical stem + soft aperture + speaker dot -->
-      <svg class="brand-mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <a class="brand" href="#top" aria-label="Porus.ai home">
+      <!-- LOGO: refined P mark with sound dot -->
+      <svg class="brand-mark" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <defs>
           <linearGradient id="lgNav" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stop-color="#F5D9A8"/>
-            <stop offset=".55" stop-color="#E8A33D"/>
-            <stop offset="1" stop-color="#8A5A0C"/>
+            <stop offset="0.5" stop-color="#E8A33D"/>
+            <stop offset="1" stop-color="#B4700F"/>
           </linearGradient>
         </defs>
-        <path d="M9.5 25V7h9c3.6 0 6.2 2.5 6.2 6.2s-2.6 6.2-6.2 6.2h-4.8V25z"
-              fill="none" stroke="url(#lgNav)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-        <circle cx="18.5" cy="13.2" r="1.9" fill="url(#lgNav)"/>
+        <!-- Stylized "P" -->
+        <g stroke="url(#lgNav)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="10" y1="6" x2="10" y2="34"/>
+          <path d="M10 14 L18 14 Q24 14 24 20 Q24 26 18 26 L10 26"/>
+        </g>
+        <!-- Sound dot (represents the "i" in "ai") -->
+        <circle cx="27" cy="10" r="2.2" fill="url(#lgNav)"/>
+        <circle cx="27" cy="10" r="2.2" fill="url(#lgNav)" opacity="0.3">
+          <animate attributeName="r" from="2.2" to="6" dur="2s" repeatCount="indefinite" />
+          <animate attributeName="opacity" from="0.3" to="0" dur="2s" repeatCount="indefinite" />
+        </circle>
       </svg>
-      <span class="brand-name">Porus</span>
+      <span class="brand-name">Porus<span class="brand-ai">.ai</span></span>
     </a>
     <div class="nav-links">
       <a href="#timing">Timing</a>
