@@ -1510,6 +1510,27 @@
     var freqData   = null;
     var sceneStart = performance.now();
 
+    /* Some browsers (notably VS Code's integrated Simple Browser and some
+       strict file:// contexts) refuse to play <audio> from file:// URLs.
+       Fetching the file and swapping in a Blob URL works around this and
+       is a no-op in normal HTTP contexts. */
+    function upgradeToBlob(el){
+      if(!el || !el.src) return;
+      var url = el.src;
+      fetch(url).then(function(r){
+        if(!r.ok) throw new Error('http '+r.status);
+        return r.blob();
+      }).then(function(b){
+        try{
+          var blobUrl = URL.createObjectURL(b);
+          el.src = blobUrl;
+          el.load();
+        }catch(e){}
+      }).catch(function(){ /* keep original src */ });
+    }
+    if(audioEn) upgradeToBlob(audioEn);
+    if(audioHi) upgradeToBlob(audioHi);
+
     function fmt(sec){
       if(!isFinite(sec)) return '0:00';
       var m=Math.floor(sec/60), s=Math.floor(sec%60);
