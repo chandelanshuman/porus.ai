@@ -105,13 +105,13 @@
     Everything else derives from the tokens and shifts automatically.
   */
   html[data-theme="light"]{
-    --bg:#F5F5F7;
-    --bg-2:#FFFFFF;
-    --ink:#1D1D1F;
-    --dim:#6E6E73;
-    --dim-2:#86868B;
-    --line:rgba(0,0,0,.10);
-    --line-2:rgba(0,0,0,.18);
+    --bg:#F7F3EC;
+    --bg-2:#FCF9F3;
+    --ink:#2A2520;
+    --dim:#6E6459;
+    --dim-2:#948B7F;
+    --line:rgba(60,45,30,.10);
+    --line-2:rgba(60,45,30,.18);
 
     --amber:#B4700F;
     --amber-hi:#8A5A0C;
@@ -119,10 +119,10 @@
     --blue:#0071E3;
     --blue-hi:#0071E3;
 
-    --glass-bg:rgba(255,255,255,.62);
-    --glass-bg-strong:rgba(255,255,255,.78);
+    --glass-bg:rgba(255,251,244,.62);
+    --glass-bg-strong:rgba(255,251,244,.80);
     --glass-hi:rgba(255,255,255,.9);
-    --glass-lo:rgba(0,0,0,.06);
+    --glass-lo:rgba(60,45,30,.06);
     --glass-blur:blur(20px) saturate(180%);
     --glass-blur-strong:blur(30px) saturate(200%);
   }
@@ -163,15 +163,15 @@
   }
   html[data-theme="light"] .backdrop::after{ opacity:.08 } /* less grain */
 
-  /* Nav pill: white glass in light mode */
+  /* Nav pill: warm cream glass in light mode */
   html[data-theme="light"] .nav-shell{
-    background:rgba(255,255,255,.72);
+    background:rgba(255,251,244,.75);
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,1),
-      inset 0 -1px 0 rgba(0,0,0,.05),
-      0 12px 30px -12px rgba(0,0,0,.15);
+      inset 0 -1px 0 rgba(60,45,30,.05),
+      0 12px 30px -12px rgba(60,45,30,.15);
   }
-  html[data-theme="light"] .nav-links a:hover{background:rgba(0,0,0,.05)}
+  html[data-theme="light"] .nav-links a:hover{background:rgba(60,45,30,.05)}
 
   /* Primary button: dark pill on light bg */
   html[data-theme="light"] .btn{
@@ -202,10 +202,10 @@
   html[data-theme="light"] .num,
   html[data-theme="light"] .fit,
   html[data-theme="light"] .path{
-    background:rgba(255,255,255,.55);
+    background:rgba(255,251,244,.55);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
   }
-  html[data-theme="light"] .hrow i{background:rgba(255,255,255,.6); color:var(--dim)}
+  html[data-theme="light"] .hrow i{background:rgba(255,251,244,.6); color:var(--dim)}
   html[data-theme="light"] .hrow i.pub{
     color:var(--amber); border-color:rgba(180,112,15,.4); background:rgba(180,112,15,.10);
   }
@@ -216,13 +216,13 @@
   /* Waveframe backgrounds — subtler on light */
   html[data-theme="light"] .waveframe,
   html[data-theme="light"] .stem .sbar{
-    background:linear-gradient(180deg,rgba(0,0,0,.04),rgba(0,0,0,.02));
+    background:linear-gradient(180deg,rgba(60,45,30,.04),rgba(60,45,30,.02));
     border-color:var(--line);
   }
 
   /* Play button on player cards */
   html[data-theme="light"] .play-btn{
-    background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.02));
+    background:linear-gradient(180deg,rgba(60,45,30,.08),rgba(60,45,30,.02));
     color:var(--ink);
     border-color:var(--line-2);
   }
@@ -1143,7 +1143,7 @@
       <a href="#trust">Trust</a>
       <a href="#you">For you</a>
       <a href="#ready">Availability</a>
-      <button class="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle theme">
+      <button class="theme-toggle" type="button" aria-label="Toggle color theme" title="Toggle theme · double-click to follow time of day">
         <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
           <circle cx="12" cy="12" r="4"/>
           <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
@@ -1555,19 +1555,33 @@
 
   /* ------------------------------------------------------------------
      Theme (dark ↔ light)
-     Priority: saved preference → system preference → dark default.
+     Priority:
+       1. Manual override saved in localStorage (from user click)
+       2. Time of day: 06:00–18:59 → light, 19:00–05:59 → dark
+       3. System prefers-color-scheme
+       4. Dark
+     Auto-refresh at the day/night boundary in case the page stays open.
      ------------------------------------------------------------------ */
   var THEME_KEY = 'porus-theme';
+  function timeTheme(){
+    var h = new Date().getHours();
+    return (h >= 6 && h < 19) ? 'light' : 'dark';
+  }
   function applyTheme(theme){
     if(theme === 'light'){
       document.documentElement.setAttribute('data-theme','light');
       var meta = document.querySelector('meta[name="theme-color"]');
-      if(meta) meta.setAttribute('content','#F5F5F7');
+      if(meta) meta.setAttribute('content','#F7F3EC');
     } else {
       document.documentElement.removeAttribute('data-theme');
       var meta2 = document.querySelector('meta[name="theme-color"]');
       if(meta2) meta2.setAttribute('content','#050506');
     }
+  }
+  function resolveAutoTheme(){
+    if(typeof timeTheme === 'function') return timeTheme();
+    var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)');
+    return mq && mq.matches ? 'light' : 'dark';
   }
   function initTheme(){
     var saved = null;
@@ -1575,10 +1589,10 @@
     if(saved === 'light' || saved === 'dark'){
       applyTheme(saved); return;
     }
-    var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)');
-    applyTheme(mq && mq.matches ? 'light' : 'dark');
+    applyTheme(resolveAutoTheme());
   }
   initTheme();
+
   var themeBtn = document.querySelector('.theme-toggle');
   if(themeBtn){
     themeBtn.addEventListener('click', function(){
@@ -1586,7 +1600,25 @@
       applyTheme(next);
       try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
     });
+    themeBtn.addEventListener('dblclick', function(){
+      try{ localStorage.removeItem(THEME_KEY); }catch(e){}
+      applyTheme(resolveAutoTheme());
+    });
   }
+
+  /* If user has NO manual override, follow time of day across the boundary. */
+  function tickAutoTheme(){
+    var saved = null;
+    try{ saved = localStorage.getItem(THEME_KEY); }catch(e){}
+    if(saved === 'light' || saved === 'dark') return;
+    var want = resolveAutoTheme();
+    var current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    if(want !== current) applyTheme(want);
+  }
+  setInterval(tickAutoTheme, 60000);
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden) tickAutoTheme();
+  });
 
   /* ------------------------------------------------------------------
      Global journey — the whole-site warm → cool → warm palette shift.
