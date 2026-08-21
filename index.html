@@ -713,6 +713,7 @@
             <span class="player-dur">0:04.20</span>
           </header>
           <p class="player-line">"We were never going to make it through the pass before nightfall."</p>
+          <audio class="player-audio" src="sample-en.wav" preload="metadata"></audio>
           <div class="waveframe">
             <canvas class="pw" data-seed="20260211" data-mode="full"></canvas>
             <span class="playhead"></span>
@@ -732,6 +733,7 @@
             <span class="player-dur">0:04.18</span>
           </header>
           <p class="player-line q">"हम रात होने से पहले उस दर्रे को कभी पार नहीं कर पाते।"</p>
+          <audio class="player-audio" src="sample-hi.wav" preload="metadata"></audio>
           <div class="waveframe">
             <canvas class="pw" data-seed="19980604" data-mode="full"></canvas>
             <span class="playhead"></span>
@@ -1126,143 +1128,22 @@
   }
 
   /* ------------------------------------------------------------------
-     Audio demo — synthesised via Web Audio API.
-     We build two short samples that illustrate the pitch:
-       · orig : an English-flavoured vowel formant sequence + music bed
-       · dub  : a Hindi-flavoured vowel formant sequence + same music bed
-     Both are ~4.2s so they land on the same beat.
-     No external files, no network. Works offline.
+     Audio demo — Real audio playback via HTML5 <audio> element
      ------------------------------------------------------------------ */
-  var AC=window.AudioContext||window.webkitAudioContext;
-  var ac=null;
-  function getCtx(){ if(!ac && AC){ ac=new AC(); } if(ac && ac.state==='suspended'){ ac.resume(); } return ac; }
-
-  // Vowel formant frequencies (F1, F2, F3) — rough approximations
-  var VOWELS = {
-    a:[730,1090,2440], e:[530,1840,2480], i:[270,2290,3010],
-    o:[570,840,2410],  u:[300,870,2240],  ah:[850,1220,2810]
-  };
-
-  function playVoicePhrase(ctx, pattern, startAt, gain){
-    // pattern: array of {v:'a', d:0.18, f:120} — vowel, duration seconds, base pitch Hz
-    var t=startAt, master=ctx.createGain();
-    master.gain.value=gain;
-    master.connect(ctx.destination);
-
-    for(var i=0;i<pattern.length;i++){
-      var seg=pattern[i];
-      var formants=VOWELS[seg.v]||VOWELS.a;
-
-      // Glottal source: sawtooth at pitch
-      var osc=ctx.createOscillator();
-      osc.type='sawtooth';
-      osc.frequency.setValueAtTime(seg.f, t);
-      osc.frequency.linearRampToValueAtTime(seg.f*(0.94+Math.random()*0.12), t+seg.d);
-
-      // Three bandpass filters approximate the vowel
-      var b1=ctx.createBiquadFilter(); b1.type='bandpass'; b1.frequency.value=formants[0]; b1.Q.value=8;
-      var b2=ctx.createBiquadFilter(); b2.type='bandpass'; b2.frequency.value=formants[1]; b2.Q.value=10;
-      var b3=ctx.createBiquadFilter(); b3.type='bandpass'; b3.frequency.value=formants[2]; b3.Q.value=12;
-
-      // Envelope
-      var g=ctx.createGain();
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.9, t+0.015);
-      g.gain.linearRampToValueAtTime(0.7, t+seg.d*0.7);
-      g.gain.linearRampToValueAtTime(0, t+seg.d);
-
-      // Mix formants
-      var mix=ctx.createGain(); mix.gain.value=0.33;
-      osc.connect(b1); osc.connect(b2); osc.connect(b3);
-      b1.connect(mix); b2.connect(mix); b3.connect(mix);
-      mix.connect(g); g.connect(master);
-
-      osc.start(t); osc.stop(t+seg.d+0.02);
-      t += seg.d;
-    }
-    return master;
-  }
-
-  function playMusicBed(ctx, startAt, duration, gain){
-    // Soft ambient pad: two detuned oscillators + slow LFO on filter
-    var master=ctx.createGain();
-    master.gain.setValueAtTime(0, startAt);
-    master.gain.linearRampToValueAtTime(gain, startAt+0.3);
-    master.gain.setValueAtTime(gain, startAt+duration-0.4);
-    master.gain.linearRampToValueAtTime(0, startAt+duration);
-    master.connect(ctx.destination);
-
-    var filter=ctx.createBiquadFilter();
-    filter.type='lowpass'; filter.frequency.value=900; filter.Q.value=1;
-    filter.connect(master);
-
-    // LFO
-    var lfo=ctx.createOscillator(); lfo.type='sine'; lfo.frequency.value=0.25;
-    var lfoGain=ctx.createGain(); lfoGain.gain.value=250;
-    lfo.connect(lfoGain); lfoGain.connect(filter.frequency);
-    lfo.start(startAt); lfo.stop(startAt+duration+0.1);
-
-    var freqs=[110, 165, 220]; // A2, E3, A3 — open fifth-ish pad
-    for(var i=0;i<freqs.length;i++){
-      var o=ctx.createOscillator();
-      o.type='triangle';
-      o.frequency.value=freqs[i]*(1+(Math.random()-.5)*0.004);
-      var g=ctx.createGain(); g.gain.value=1/freqs.length*0.7;
-      o.connect(g); g.connect(filter);
-      o.start(startAt); o.stop(startAt+duration+0.1);
-    }
-    return master;
-  }
-
-  // Rough phoneme approximations of the two sentences.
-  // Not linguistically accurate — just enough shape for the ear.
-  var PATTERN_EN = [
-    {v:'i',d:0.12,f:135},{v:'e',d:0.10,f:130},                     // "we"
-    {v:'e',d:0.14,f:128},{v:'a',d:0.14,f:120},                     // "were"
-    {v:'e',d:0.10,f:132},{v:'a',d:0.10,f:128},                     // "never"
-    {v:'o',d:0.14,f:118},{v:'i',d:0.12,f:128},{v:'a',d:0.10,f:120},// "going to"
-    {v:'e',d:0.12,f:130},{v:'a',d:0.14,f:118},                     // "make it"
-    {v:'u',d:0.10,f:120},{v:'u',d:0.14,f:118},                     // "through"
-    {v:'e',d:0.10,f:126},{v:'a',d:0.14,f:120},                     // "the pass"
-    {v:'i',d:0.10,f:130},{v:'o',d:0.14,f:118},                     // "before"
-    {v:'a',d:0.16,f:120},{v:'o',d:0.20,f:110}                      // "nightfall"
-  ];
-
-  var PATTERN_HI = [
-    {v:'a',d:0.14,f:130},{v:'u',d:0.12,f:126},                     // "hum"
-    {v:'a',d:0.14,f:128},{v:'a',d:0.14,f:122},                     // "raat"
-    {v:'o',d:0.12,f:126},{v:'e',d:0.10,f:130},                     // "hone"
-    {v:'e',d:0.10,f:128},{v:'a',d:0.12,f:120},                     // "se"
-    {v:'a',d:0.10,f:130},{v:'e',d:0.12,f:122},                     // "pehle"
-    {v:'u',d:0.10,f:126},{v:'a',d:0.14,f:120},                     // "us"
-    {v:'a',d:0.14,f:120},{v:'e',d:0.10,f:128},                     // "darre ko"
-    {v:'a',d:0.10,f:130},{v:'i',d:0.10,f:132},                     // "kabhi"
-    {v:'a',d:0.10,f:126},{v:'a',d:0.10,f:124},                     // "paar"
-    {v:'a',d:0.10,f:120},{v:'e',d:0.14,f:118}                      // "nahi paate"
-  ];
-
-  var players={
-    orig:{pattern:PATTERN_EN, duration:4.18},
-    dub:{pattern:PATTERN_HI, duration:4.18}
-  };
-
-  var activePlayer=null;
-  var activeMaster=null;
-  var activeStop=0;
-  var rafId=null;
-
-  function totalDuration(pattern){
-    var t=0; for(var i=0;i<pattern.length;i++) t+=pattern[i].d; return t;
-  }
+  var activeCard=null;
+  var activeAudio=null;
 
   function stopActive(){
-    if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
-    if(activePlayer){
-      activePlayer.classList.remove('playing');
-      var wf=activePlayer.querySelector('.waveframe');
-      var head=activePlayer.querySelector('.playhead');
-      var meter=activePlayer.querySelector('.player-meter i');
-      var btn=activePlayer.querySelector('.play-btn');
+    if(activeAudio){
+      activeAudio.pause();
+      activeAudio.currentTime=0;
+    }
+    if(activeCard){
+      activeCard.classList.remove('playing');
+      var wf=activeCard.querySelector('.waveframe');
+      var head=activeCard.querySelector('.playhead');
+      var meter=activeCard.querySelector('.player-meter i');
+      var btn=activeCard.querySelector('.play-btn');
       if(wf) wf.classList.remove('playing');
       if(head) head.style.left='0';
       if(meter) meter.style.width='0';
@@ -1272,30 +1153,19 @@
         btn.querySelector('svg').innerHTML='<path d="M8 5v14l11-7z"/>';
       }
     }
-    activePlayer=null;
+    activeCard=null;
+    activeAudio=null;
   }
 
-  function playCard(card, kind){
-    var ctx=getCtx();
-    if(!ctx){ return; }
+  function playCard(card){
+    var audio=card.querySelector('.player-audio');
+    if(!audio) return;
 
-    // If clicking the same card again, stop.
-    if(activePlayer===card){ stopActive(); return; }
+    if(activeCard===card){
+      stopActive();
+      return;
+    }
     stopActive();
-
-    var cfg=players[kind];
-    var pattern=cfg.pattern;
-    var patternDur=totalDuration(pattern);
-    // Stretch/compress pattern to hit the target duration exactly
-    var scale=cfg.duration/patternDur;
-    var scaled=pattern.map(function(seg){ return {v:seg.v,d:seg.d*scale,f:seg.f}; });
-
-    var start=ctx.currentTime+0.05;
-    playMusicBed(ctx, start, cfg.duration, 0.08);
-    playVoicePhrase(ctx, scaled, start, 0.16);
-
-    activePlayer=card;
-    activeStop=start+cfg.duration;
 
     var wf=card.querySelector('.waveframe');
     var head=card.querySelector('.playhead');
@@ -1309,25 +1179,29 @@
       btn.querySelector('svg').innerHTML='<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
     }
 
-    function tick(){
-      if(!activePlayer||activePlayer!==card){ return; }
-      var now=ctx.currentTime;
-      var p=Math.min(1, (now-start)/cfg.duration);
+    activeCard=card;
+    activeAudio=audio;
+
+    audio.play().catch(function(e){ console.log('Audio play failed:', e); });
+
+    audio.ontimeupdate=function(){
+      if(!activeCard||activeCard!==card) return;
+      var p=audio.duration ? audio.currentTime/audio.duration : 0;
       if(head) head.style.left=(p*100).toFixed(2)+'%';
       if(meter) meter.style.width=(p*100).toFixed(2)+'%';
-      if(p>=1){ stopActive(); return; }
-      rafId=requestAnimationFrame(tick);
-    }
-    rafId=requestAnimationFrame(tick);
+    };
+
+    audio.onended=function(){
+      if(activeCard===card) stopActive();
+    };
   }
 
   var playerCards=document.querySelectorAll('.player');
   for(var pi=0; pi<playerCards.length; pi++){
     (function(card){
-      var kind=card.getAttribute('data-player');
       var btn=card.querySelector('.play-btn');
       if(btn){
-        btn.addEventListener('click', function(){ playCard(card, kind); });
+        btn.addEventListener('click', function(){ playCard(card); });
       }
     })(playerCards[pi]);
   }
