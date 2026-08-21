@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" role="img" aria-label="Porus">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F5D9A8"/>
+      <stop offset=".55" stop-color="#E8A33D"/>
+      <stop offset="1" stop-color="#8A5A0C"/>
+    </linearGradient>
+    <linearGradient id="ink" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DADADF"/>
+    </linearGradient>
+  </defs>
+  <!-- Monogram mark: a P with an aperture dot suggesting sound emerging -->
+  <g transform="translate(6 8)">
+    <path d="M8 44V4h16c6.4 0 11 4.5 11 11s-4.6 11-11 11H15v18z"
+          fill="none" stroke="url(#gold)" stroke-width="3.6"
+          stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="24" cy="15" r="3.2" fill="url(#gold)"/>
+  </g>
+  <!-- Wordmark -->
+  <g fill="url(#ink)" font-family="-apple-system,'SF Pro Display','Inter',sans-serif"
+     font-size="30" font-weight="600" letter-spacing="-1.2">
+    <text x="58" y="40">Porus</text>
+  </g>
+</svg>
