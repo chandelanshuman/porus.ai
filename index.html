@@ -325,6 +325,17 @@
   html[data-theme="light"] .orbs::after{display:none}
   @media (prefers-reduced-motion: reduce){.orb,.orbs::before,.orbs::after{animation:none}}
 
+  /* Starfield — sits between the backdrop wash and the aurora orbs.
+     Night mode only; drawn on canvas so stars can stretch into gentle
+     hyperspace streaks as you scroll toward the demo video. */
+  .stars{
+    position:fixed; inset:0; z-index:-1; pointer-events:none;
+    width:100%; height:100%;
+    opacity:.9;
+    transition:opacity .8s ease;
+  }
+  html[data-theme="light"] .stars{opacity:0}
+
   /* ---------- LAYOUT ---------- */
   .wrap{width:100%;max-width:var(--max);margin-inline:auto;padding-inline:24px}
   .stack{display:flex;flex-direction:column}
@@ -1175,6 +1186,7 @@
   <div class="bd-warm"></div>
   <div class="bd-cool"></div>
 </div>
+<canvas class="stars" aria-hidden="true"></canvas>
 <div class="orbs" aria-hidden="true">
   <div class="orb a"></div>
   <div class="orb b"></div>
@@ -1779,6 +1791,121 @@
   window.addEventListener('scroll', onJourneyScroll, {passive:true});
   window.addEventListener('resize', onJourneyScroll);
   updateJourney();
+
+  /* ------------------------------------------------------------------
+     Starfield + hyperspace morph (night mode only).
+     Subtle twinkling stars behind the aurora. As you scroll toward the
+     demo video the stars stretch into faint radial streaks and drift
+     outward — a whisper of the Star Wars jump — peaking just as the
+     video arrives, then settling back to calm points past it.
+     ------------------------------------------------------------------ */
+  (function(){
+    var cv = document.querySelector('.stars');
+    if(!cv || !cv.getContext) return;
+    var ctx = cv.getContext('2d');
+    var demo = document.getElementById('demo');
+    var stars = [], W = 0, H = 0, demoTarget = 1;
+    var wasNight = false, staticDrawn = false;
+
+    function isNight(){ return document.documentElement.getAttribute('data-theme') !== 'light'; }
+
+    function build(){
+      var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      W = window.innerWidth; H = window.innerHeight;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var n = Math.max(60, Math.min(220, Math.round(W * H / 9000)));
+      stars.length = 0;
+      var rnd = seeded(19770525); /* a long time ago, in a galaxy far, far away */
+      for(var i = 0; i < n; i++){
+        var tint = rnd();
+        stars.push({
+          x: rnd(), y: rnd(),
+          r: .4 + rnd() * 1.1,          /* radius: mostly sub-pixel pinpricks */
+          a: .22 + rnd() * .48,         /* base alpha — kept faint */
+          ph: rnd() * 6.2832,           /* twinkle phase */
+          sp: .3 + rnd() * .9,          /* twinkle speed */
+          c: tint < .78 ? '255,255,255' : (tint < .9 ? '190,255,224' : '168,224,255')
+        });
+      }
+      if(demo){
+        var r = demo.getBoundingClientRect();
+        /* scrollY at which the video "hits" (fills most of the viewport) */
+        demoTarget = Math.max(1, r.top + window.scrollY - H * .55);
+      }
+      staticDrawn = false;
+    }
+
+    function render(now){
+      var t = now / 1000;
+      /* Warp: eases 0 → 1 across the scroll from page top to the video,
+         then fades back out over one viewport once the video has hit. */
+      var p = Math.min(1, Math.max(0, window.scrollY / demoTarget));
+      var warp = p * p * (3 - 2 * p);
+      if(window.scrollY > demoTarget){
+        warp *= Math.max(0, 1 - (window.scrollY - demoTarget) / H);
+      }
+      if(reduce) warp = 0;
+
+      ctx.clearRect(0, 0, W, H);
+      var cx = W / 2, cy = H / 2;
+      var maxD = Math.hypot(cx, cy);
+      for(var i = 0; i < stars.length; i++){
+        var s = stars[i];
+        var x = s.x * W, y = s.y * H;
+        var dx = x - cx, dy = y - cy;
+        var d = Math.hypot(dx, dy) || 1;
+        var edge = d / maxD; /* 0 centre → 1 corner */
+        if(warp > .01){
+          /* Slow outward drift — stars respawn near centre, like flying through */
+          var v = warp * warp * (.15 + edge * 1.6);
+          s.x += (dx / d) * v / W;
+          s.y += (dy / d) * v / H;
+          if(s.x < -.03 || s.x > 1.03 || s.y < -.03 || s.y > 1.03){
+            s.x = .3 + Math.abs(Math.sin((i + 1) * 12.9898 + t)) * .4;
+            s.y = .3 + Math.abs(Math.sin((i + 1) * 78.233 + t)) * .4;
+          }
+        }
+        var tw = reduce ? .85 : (.72 + .28 * Math.sin(t * s.sp + s.ph));
+        var alpha = s.a * tw;
+        var len = warp * warp * edge * 64; /* streak length, gentle even at peak */
+        if(len > 1.5){
+          ctx.strokeStyle = 'rgba(' + s.c + ',' + (alpha * .85).toFixed(3) + ')';
+          ctx.lineWidth = s.r;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(x - (dx / d) * len, y - (dy / d) * len);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = 'rgba(' + s.c + ',' + alpha.toFixed(3) + ')';
+          ctx.beginPath();
+          ctx.arc(x, y, s.r, 0, 6.2832);
+          ctx.fill();
+        }
+      }
+    }
+
+    function frame(now){
+      requestAnimationFrame(frame);
+      var night = isNight();
+      if(!night){
+        if(wasNight){ ctx.clearRect(0, 0, W, H); wasNight = false; }
+        return;
+      }
+      if(!wasNight){ wasNight = true; staticDrawn = false; }
+      if(reduce){
+        /* Static field: draw once, repaint only after resize/theme change */
+        if(!staticDrawn){ render(now); staticDrawn = true; }
+        return;
+      }
+      render(now);
+    }
+
+    window.addEventListener('resize', function(){ build(); });
+    build();
+    requestAnimationFrame(frame);
+  })();
 
   /* ------------------------------------------------------------------
      Waveform painting (canvas). Seeded so the shape is stable but each
