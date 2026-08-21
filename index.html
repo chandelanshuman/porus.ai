@@ -450,6 +450,30 @@
   html[data-theme="light"] .theme-toggle .ico-sun{opacity:1; transform:rotate(0) scale(1)}
   html[data-theme="light"] .theme-toggle .ico-moon{opacity:0; transform:rotate(90deg) scale(.6)}
   @media (max-width:780px){.theme-toggle{margin-right:-2px}}
+
+  /* ---------- THEME REVEAL (circular light/night spread) ----------
+     Uses the View Transitions API: the incoming theme is clipped to a
+     circle that grows from the toggle button until it covers the page.
+     The circle itself is animated from JS (needs the button's coords);
+     here we just disable the default cross-fade so the wipe is clean. */
+  ::view-transition-old(root),
+  ::view-transition-new(root){
+    animation:none;
+    mix-blend-mode:normal;
+  }
+  ::view-transition-old(root){z-index:1}
+  ::view-transition-new(root){z-index:2}
+  /* Freeze per-element color transitions while the wipe runs, so both
+     snapshots are fully-settled themes (no half-faded surfaces). */
+  html.theme-wipe *,
+  html.theme-wipe *::before,
+  html.theme-wipe *::after{transition:none !important}
+  /* Glow burst on the button — light radiating outward at the moment of the switch */
+  .theme-toggle.burst{animation:tg-burst .7s ease-out}
+  @keyframes tg-burst{
+    0%{box-shadow:0 0 0 0 rgba(212,164,76,.55), 0 0 18px 4px rgba(212,164,76,.35)}
+    100%{box-shadow:0 0 0 48px rgba(212,164,76,0), 0 0 0 0 rgba(212,164,76,0)}
+  }
   @media (max-width:780px){
     .nav-links a:not(.btn){display:none}
     .nav-shell{padding-left:16px}
@@ -1563,6 +1587,31 @@
 
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  /* Always start at the top on reload — stop the browser restoring the
+     previous scroll position (also covers back/forward cache restores). */
+  if('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  function jumpToTop(){
+    /* Temporarily kill scroll-behavior:smooth so the reset is a hard snap
+       (Safari treats scrollTo as smooth when the CSS says so, and older
+       versions don't understand behavior:'instant'). */
+    var de = document.documentElement;
+    var prev = de.style.scrollBehavior;
+    de.style.scrollBehavior = 'auto';
+    window.scrollTo(0, 0);
+    de.style.scrollBehavior = prev;
+  }
+  jumpToTop();
+  /* Safari re-applies the saved scroll position asynchronously AFTER this
+     script runs (both on reload and bfcache restore), so reset again once
+     it has had its say: on pageshow, on load, and one frame after each. */
+  function jumpSoon(){
+    jumpToTop();
+    requestAnimationFrame(jumpToTop);
+    setTimeout(jumpToTop, 0);
+  }
+  window.addEventListener('pageshow', jumpSoon);
+  window.addEventListener('load', jumpSoon);
+
   /* ------------------------------------------------------------------
      Theme (dark ↔ light)
      Priority:
@@ -1603,11 +1652,48 @@
   }
   initTheme();
 
+  /* Circular reveal: the new theme spreads outward from the toggle button,
+     like the button casting light (or night) across the whole page.
+     Falls back to the plain switch when View Transitions aren't supported
+     or the user prefers reduced motion. */
+  function revealTheme(next, btn){
+    if(reduce || !document.startViewTransition){
+      applyTheme(next);
+      return;
+    }
+    var rect = btn.getBoundingClientRect();
+    var x = rect.left + rect.width / 2;
+    var y = rect.top + rect.height / 2;
+    var maxR = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
+    );
+    var rootEl = document.documentElement;
+    rootEl.classList.add('theme-wipe');
+
+    btn.classList.remove('burst');
+    void btn.offsetWidth; /* restart the glow animation on rapid toggles */
+    btn.classList.add('burst');
+
+    var vt = document.startViewTransition(function(){ applyTheme(next); });
+    vt.ready.then(function(){
+      rootEl.animate(
+        { clipPath: [
+            'circle(0px at ' + x + 'px ' + y + 'px)',
+            'circle(' + Math.ceil(maxR) + 'px at ' + x + 'px ' + y + 'px)'
+          ] },
+        { duration: 750, easing: 'cubic-bezier(.3,0,.2,1)', pseudoElement: '::view-transition-new(root)' }
+      );
+    }).catch(function(){});
+    function cleanup(){ rootEl.classList.remove('theme-wipe'); }
+    vt.finished.then(cleanup, cleanup);
+  }
+
   var themeBtn = document.querySelector('.theme-toggle');
   if(themeBtn){
     themeBtn.addEventListener('click', function(){
       var next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-      applyTheme(next);
+      revealTheme(next, themeBtn);
       try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
     });
     themeBtn.addEventListener('dblclick', function(){
