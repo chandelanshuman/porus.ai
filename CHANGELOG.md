@@ -55,7 +55,7 @@ Powered by a single sine function `sin(pageProgress · π)` smoothed with `smoot
 
 ### The light / dark theme system
 - **Warm off-white** `#F7F3EC` (paper cream, not clinical) for the light mode base
-- **Deep near-black** `#050506` for dark
+- **Night-sky blue-black** `#04060A` for dark — tinted so the aurora sits on it naturally
 - **Time-of-day auto**: `06:00–18:59` → light, `19:00–05:59` → dark on first visit
 - **Manual override**: single click pins your choice to `localStorage`
 - **Reset to auto**: double-click the sun/moon toggle
@@ -63,6 +63,21 @@ Powered by a single sine function `sin(pageProgress · π)` smoothed with `smoot
 - **Meta `theme-color` sync**: mobile browser chrome matches the current mode
 - **Smooth 500ms transitions** on every themable surface — no jarring flash
 - **The video stays cinematically dark in both modes** (it's a video); its halos still respond to `--journey` so the seam blend works either way
+
+### The theme-reveal moment
+Clicking the sun/moon toggle doesn't just swap palettes — the new theme physically spreads from the button:
+- **Circular reveal** via the View Transitions API: the incoming theme is clipped to a circle that grows from the toggle until it covers the page (750ms), with a golden glow burst on the button itself
+- **Crisp wipe edge**: the default cross-fade is disabled and per-element color transitions are frozen during the wipe, so the circle boundary is a clean line between two fully-settled themes
+- **A flock takes flight** once the theme has fully spread: **five bats** scatter right when night falls, **five doves** when day breaks — hand-drawn SVG silhouettes launched from the toggle with staggered delays, varied sizes, fan-out paths, and de-synced wing beats so they read as a loose flock
+- **Graceful fallbacks**: browsers without View Transitions get the plain switch (flock included); reduced-motion users get neither
+
+### Night mode: aurora + starfield
+Dark mode is a night sky, not just an inverted palette:
+- **Aurora borealis ambience** — the ambient orbs retint to aurora emerald / polar cyan / violet, the backdrop wash goes emerald with teal-violet fringes, and two blurred aurora curtain bands sway slowly across the top of the sky (26s / 34s cycles, `mix-blend-mode: screen`)
+- **The scroll journey stays in-band**: dark mode caps the hue rotation at 60° so scrolling drifts the aurora green → teal → blue instead of swinging into reds (light mode keeps its 220° warm→cool arc)
+- **Canvas starfield** between the backdrop and the orbs: up to 220 faint twinkling stars, a few tinted aurora green/cyan, seeded with `19770525` so the sky is identical on every visit
+- **Hyperspace morph**: scrolling toward the demo stretches the stars into radial streaks that drift outward — a whisper of the Star Wars jump, peaking as the video fills the viewport — then the effect **plays in reverse after the video**: stars streak and drift inward, easing back to calm points, like dropping out of lightspeed on the far side
+- All of it is night-only, one canvas at capped 1.5× DPR, static single-draw under reduced motion
 
 ---
 
@@ -93,6 +108,16 @@ Getting speech to actually play involved three separate fixes:
 | `c053d89` | Cinema halos for seamless section blending |
 | `2486215` | Light / dark theme toggle |
 | `26ca7c4` | Warm off-white light theme + time-of-day auto theme |
+| `4360ca5` | Hero headline: "Say it once" → "Said it once" |
+| `f3178fd` | New branding: minimalist P mark + animated sound dot |
+| `57670f2` | Bigger brand mark + golden glow |
+| `0c7c43e` / `3b278ab` | P logo bottom line for clarity |
+| `ad543ed` | Circular theme-reveal animation + always start at top on reload |
+| `a600119` | Aurora borealis palette for night mode |
+| `31d523f` | Night-mode starfield with scroll-driven hyperspace morph |
+| `89abbe5` | Bat released from the theme toggle when night falls |
+| `8b1bd2b` | Hyperspace morph plays in reverse after the video |
+| `9ba8a70` | Flocks: five doves by day, five bats by night |
 
 ---
 
