@@ -517,18 +517,23 @@
   html.theme-wipe *,
   html.theme-wipe *::before,
   html.theme-wipe *::after{transition:none !important}
-  /* Bat that flies from the logo when day turns to night.
-     Dark silhouette with a faint moonlit rim so it reads on the night sky.
-     Traverse (left → offscreen right) is driven from JS; bobbing and
-     wing-flap run here as looping animations on the inner layers. */
-  .bat-fly{position:fixed; left:0; top:0; z-index:2000; pointer-events:none; will-change:transform}
-  .bat-bob{animation:bat-bob .5s ease-in-out infinite alternate}
-  .bat-fly svg{display:block; width:44px; height:auto; fill:#0B0F16; opacity:.92;
-    filter:drop-shadow(0 0 5px rgba(150,190,255,.32))}
+  /* Flyers released from the day/night toggle: five bats when night
+     falls, five doves when day breaks. The traverse (button → offscreen
+     right) is driven from JS; bobbing and wing-flap run here as looping
+     animations on the inner layers. */
+  .flyer{position:fixed; left:0; top:0; z-index:2000; pointer-events:none; will-change:transform}
+  .flyer-bob{animation:flyer-bob .5s ease-in-out infinite alternate}
+  .flyer svg{display:block; width:44px; height:auto}
+  .flyer.bat svg{fill:#0B0F16; opacity:.92; filter:drop-shadow(0 0 5px rgba(150,190,255,.32))}
+  .flyer.dove svg{fill:#FFFDF8; opacity:.96; filter:drop-shadow(0 2px 5px rgba(90,70,45,.38))}
   .bat-wing{animation:bat-flap .15s ease-in-out infinite alternate;
     transform-box:fill-box; transform-origin:100% 30%}
+  .dove-wing{animation:dove-flap .32s ease-in-out infinite alternate;
+    transform-box:fill-box; transform-origin:100% 88%}
+  .dove-wing.far{opacity:.55}
   @keyframes bat-flap{from{transform:rotate(14deg)}to{transform:rotate(-24deg)}}
-  @keyframes bat-bob{from{transform:translateY(-5px)}to{transform:translateY(6px)}}
+  @keyframes dove-flap{from{transform:rotate(16deg)}to{transform:rotate(-14deg)}}
+  @keyframes flyer-bob{from{transform:translateY(-5px)}to{transform:translateY(6px)}}
 
   /* Glow burst on the button — light radiating outward at the moment of the switch */
   .theme-toggle.burst{animation:tg-burst .7s ease-out}
@@ -1719,44 +1724,68 @@
      like the button casting light (or night) across the whole page.
      Falls back to the plain switch when View Transitions aren't supported
      or the user prefers reduced motion. */
-  /* A bat slips out of the day/night toggle and flies off to the right when night falls. */
-  function flyBat(){
+  /* Flyers: five bats slip out of the day/night toggle when night falls,
+     five doves when day breaks — a loose staggered flock heading right. */
+  var BAT_WING = 'M47 20 C38 8 22 4 3 10 C12 15 15 20 11 27 C19 24 25 25 27 31 C33 29 39 28 45 29 Z';
+  var BAT_BODY = 'M50 34 C47 29 45 27 42 25 C40 21 40 15 44 12 C45 8 45 6 44 3 L48 8 C49.5 7.4 50.5 7.4 52 8 L56 3 C55 6 55 8 56 12 C60 15 60 21 58 25 C55 27 53 29 50 34 Z';
+  var DOVE_WING = 'M40 17 C36 5 28 0 16 0 C20 3 23 6 24 9 C20 8 16 8 12 9 C17 11 21 14 23 17 C28 21 35 20 40 17 Z';
+  var DOVE_BODY = 'M46 15 C55 15 64 17 70 20 C73 18 76 18 78 19 L84 22 L77 23 C74 24 71 24 69 23 C64 27 55 29 47 28 C36 28 26 26 20 23 L10 29 L3 31 L7 26 L2 23 L11 22 L20 22 C26 18 37 15 46 15 Z';
+  function flyerSVG(kind){
+    if(kind === 'bat'){
+      return '<svg viewBox="0 0 100 44" width="44" height="20">' +
+        '<g class="bat-wing"><path d="' + BAT_WING + '"/></g>' +
+        '<g transform="translate(100 0) scale(-1 1)"><g class="bat-wing"><path d="' + BAT_WING + '"/></g></g>' +
+        '<path d="' + BAT_BODY + '"/></svg>';
+    }
+    return '<svg viewBox="0 0 100 44" width="44" height="20">' +
+      '<g transform="translate(4 3)"><g class="dove-wing far"><path d="' + DOVE_WING + '"/></g></g>' +
+      '<path d="' + DOVE_BODY + '"/>' +
+      '<g class="dove-wing"><path d="' + DOVE_WING + '"/></g></svg>';
+  }
+  function flyFlock(kind){
     if(reduce) return;
-    var brand = document.querySelector('.theme-toggle');
-    if(!brand || !document.body.animate) return;
-    var old = document.querySelector('.bat-fly');
-    if(old) old.remove();
-    var wing = 'M47 20 C38 8 22 4 3 10 C12 15 15 20 11 27 C19 24 25 25 27 31 C33 29 39 28 45 29 Z';
-    var body = 'M50 34 C47 29 45 27 42 25 C40 21 40 15 44 12 C45 8 45 6 44 3 L48 8 C49.5 7.4 50.5 7.4 52 8 L56 3 C55 6 55 8 56 12 C60 15 60 21 58 25 C55 27 53 29 50 34 Z';
-    var el = document.createElement('div');
-    el.className = 'bat-fly';
-    el.setAttribute('aria-hidden', 'true');
-    el.innerHTML =
-      '<div class="bat-bob"><svg viewBox="0 0 100 44" width="44" height="20">' +
-        '<g class="bat-wing"><path d="' + wing + '"/></g>' +
-        '<g transform="translate(100 0) scale(-1 1)"><g class="bat-wing"><path d="' + wing + '"/></g></g>' +
-        '<path d="' + body + '"/>' +
-      '</svg></div>';
-    document.body.appendChild(el);
-    var r = brand.getBoundingClientRect();
+    var btn = document.querySelector('.theme-toggle');
+    if(!btn || !document.body.animate) return;
+    var olds = document.querySelectorAll('.flyer');
+    for(var k = 0; k < olds.length; k++){
+      if(olds[k].parentNode) olds[k].parentNode.removeChild(olds[k]);
+    }
+    var r = btn.getBoundingClientRect();
     var x0 = r.left + r.width * .4;
     var y0 = r.top + r.height / 2 - 12;
-    var x1 = window.innerWidth + 80;
-    var anim = el.animate([
-      {transform:'translate(' + x0 + 'px,' + y0 + 'px) scale(.6)', opacity:0},
-      {transform:'translate(' + (x0 + 36) + 'px,' + (y0 - 10) + 'px) scale(.95)', opacity:1, offset:.16},
-      {transform:'translate(' + ((x0 + x1) / 2) + 'px,' + (y0 + 16) + 'px) scale(.85)', opacity:.95, offset:.55},
-      {transform:'translate(' + x1 + 'px,' + (y0 - 28) + 'px) scale(.55)', opacity:.8}
-    ], {duration:3400, easing:'cubic-bezier(.35,.1,.65,1)'});
-    function gone(){ if(el.parentNode) el.remove(); }
-    anim.onfinish = gone;
-    setTimeout(gone, 4600); /* safety net if onfinish never fires */
+    var x1 = window.innerWidth + 90;
+    for(var i = 0; i < 5; i++){
+      var el = document.createElement('div');
+      el.className = 'flyer ' + kind;
+      el.setAttribute('aria-hidden', 'true');
+      el.innerHTML = '<div class="flyer-bob" style="animation-delay:-' +
+        (Math.random() * .5).toFixed(2) + 's">' + flyerSVG(kind) + '</div>';
+      document.body.appendChild(el);
+      /* de-sync the wing beats so the flock doesn't flap in lockstep */
+      var wings = el.querySelectorAll('.bat-wing, .dove-wing');
+      for(var w = 0; w < wings.length; w++) wings[w].style.animationDelay = '-' + (i * .07).toFixed(2) + 's';
+      var spread = (i - 2) * 18 + (Math.random() - .5) * 12; /* vertical fan-out */
+      var dip = 10 + Math.random() * 18;
+      var size = .75 + Math.random() * .35;
+      var dur = 3000 + i * 280, delay = i * 160;
+      var anim = el.animate([
+        {transform:'translate(' + x0 + 'px,' + y0 + 'px) scale(' + (size * .6).toFixed(2) + ')', opacity:0},
+        {transform:'translate(' + (x0 + 36) + 'px,' + (y0 - 10 + spread * .3).toFixed(1) + 'px) scale(' + size.toFixed(2) + ')', opacity:1, offset:.16},
+        {transform:'translate(' + ((x0 + x1) / 2) + 'px,' + (y0 + dip + spread * .7).toFixed(1) + 'px) scale(' + (size * .9).toFixed(2) + ')', opacity:.95, offset:.55},
+        {transform:'translate(' + x1 + 'px,' + (y0 - 28 + spread).toFixed(1) + 'px) scale(' + (size * .6).toFixed(2) + ')', opacity:.8}
+      ], {duration:dur, delay:delay, easing:'cubic-bezier(.35,.1,.65,1)', fill:'backwards'});
+      (function(node, a){
+        var gone = function(){ if(node.parentNode) node.parentNode.removeChild(node); };
+        a.onfinish = gone;
+        setTimeout(gone, dur + delay + 800); /* safety net if onfinish never fires */
+      })(el, anim);
+    }
   }
 
   function revealTheme(next, btn){
     if(reduce || !document.startViewTransition){
       applyTheme(next);
-      if(next === 'dark') setTimeout(flyBat, 250);
+      setTimeout(function(){ flyFlock(next === 'dark' ? 'bat' : 'dove'); }, 250);
       return;
     }
     var rect = btn.getBoundingClientRect();
@@ -1785,8 +1814,8 @@
     }).catch(function(){});
     function cleanup(){
       rootEl.classList.remove('theme-wipe');
-      /* Night has fully fallen — release the bat from the logo */
-      if(next === 'dark') flyBat();
+      /* Theme fully spread — release the flock: bats into the night, doves into the day */
+      flyFlock(next === 'dark' ? 'bat' : 'dove');
     }
     vt.finished.then(cleanup, cleanup);
   }
