@@ -27,6 +27,7 @@ A single-file, zero-dependency marketing site for **Porus.ai** — an AI dubbing
 - **Glass primitive** (`.glass`) — translucent tint, saturated backdrop-blur, inner top-highlight and bottom-shadow (concavity), edge chromatic aberration via `mix-blend-mode: screen`
 - **Metallic + gold gradient text** — two treatments: cool silver `.metal` for keynote lines, warm `.gold` for accents
 - **Floating pill navigation** with backdrop blur, matching iOS 26 / macOS Tahoe direction
+- **Cursor-reactive audio** — hero, timing and stem waveforms use a coupled spring simulation: cursor momentum lifts nearby bars, energy propagates into their neighbours, and the waveform rings down naturally after the pointer passes; champagne-gold by day, aurora green/cyan by night
 
 ### The whole-page journey (warm → cool → warm)
 The site's ambient palette flows through a single sine-curve arc as you scroll top-to-bottom:
@@ -68,7 +69,7 @@ Powered by a single sine function `sin(pageProgress · π)` smoothed with `smoot
 Clicking the sun/moon toggle doesn't just swap palettes — the new theme physically spreads from the button:
 - **Circular reveal** via the View Transitions API: the incoming theme is clipped to a circle that grows from the toggle until it covers the page (750ms), with a golden glow burst on the button itself
 - **Crisp wipe edge**: the default cross-fade is disabled and per-element color transitions are frozen during the wipe, so the circle boundary is a clean line between two fully-settled themes
-- **A flock takes flight** once the theme has fully spread: **five bats** scatter right when night falls, **five doves** when day breaks — hand-drawn SVG silhouettes launched from the toggle with staggered delays, varied sizes, fan-out paths, and de-synced wing beats so they read as a loose flock
+- **A flock takes flight** once the theme has fully spread: **five bats** scatter right when night falls, **five golden doves** when day breaks — hand-drawn SVG silhouettes launched from the toggle with staggered delays, varied sizes, fan-out paths, and de-synced wing beats so they read as a loose flock
 - **Graceful fallbacks**: browsers without View Transitions get the plain switch (flock included); reduced-motion users get neither
 
 ### Night mode: aurora + starfield

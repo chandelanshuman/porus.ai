@@ -336,6 +336,19 @@
   }
   html[data-theme="light"] .stars{opacity:0}
 
+  /* Daylight counterpart to the starfield: a restrained optical flare
+     sourced from the Porus mark. Its ghosts move along the logo→page
+     axis as the demo approaches, then ease back after it passes. */
+  .day-flare{
+    position:fixed;inset:0;z-index:-1;pointer-events:none;
+    width:100%;height:100%;opacity:0;
+    transition:opacity .8s ease;
+  }
+  html[data-theme="light"] .day-flare{opacity:.82}
+  .brand-mark{transition:filter .8s ease}
+  html[data-theme="light"] .brand-mark{filter:drop-shadow(0 0 7px rgba(180,112,15,.18))}
+  @media (prefers-reduced-motion:reduce){html[data-theme="light"] .day-flare{opacity:.55}}
+
   /* ---------- LAYOUT ---------- */
   .wrap{width:100%;max-width:var(--max);margin-inline:auto;padding-inline:24px}
   .stack{display:flex;flex-direction:column}
@@ -525,7 +538,10 @@
   .flyer-bob{animation:flyer-bob .5s ease-in-out infinite alternate}
   .flyer svg{display:block; width:44px; height:auto}
   .flyer.bat svg{fill:#0B0F16; opacity:.92; filter:drop-shadow(0 0 5px rgba(150,190,255,.32))}
-  .flyer.dove svg{fill:#FFFDF8; opacity:.96; filter:drop-shadow(0 2px 5px rgba(90,70,45,.38))}
+  .flyer.dove svg{
+    fill:#D49A32; stroke:#8A5A0C; stroke-width:.35;
+    opacity:.96; filter:drop-shadow(0 2px 5px rgba(138,90,12,.38));
+  }
   .bat-wing{animation:bat-flap .15s ease-in-out infinite alternate;
     transform-box:fill-box; transform-origin:100% 30%}
   .dove-wing{animation:dove-flap .32s ease-in-out infinite alternate;
@@ -588,6 +604,46 @@
   }
   .stage-caption span{display:inline-flex;align-items:center;gap:6px}
   .stage-caption b{color:var(--amber-hi);font-weight:500}
+
+  /* Cursor-reactive audio surfaces. The canvas bars do the physical
+     response; these layers provide a restrained glass highlight and
+     tracking hairline so the motion feels connected to the pointer. */
+  .audio-reactive{
+    --wave-x:50%;--wave-y:50%;--wave-rx:0deg;--wave-ry:0deg;
+    position:relative;transform:perspective(1000px) rotateX(var(--wave-rx)) rotateY(var(--wave-ry)) translateZ(0);
+    transform-style:preserve-3d;
+    transition:transform .5s cubic-bezier(.16,1,.3,1),box-shadow .45s ease,border-color .45s ease;
+    will-change:transform;
+  }
+  .audio-reactive.is-active{
+    transition:transform .12s ease-out,box-shadow .25s ease,border-color .25s ease;
+    border-color:color-mix(in srgb,var(--amber) 30%,var(--line));
+  }
+  .audio-reactive canvas{position:relative;z-index:2}
+  .audio-reactive .wave-glow{
+    position:absolute;inset:0;z-index:1;pointer-events:none;border-radius:inherit;
+    background:radial-gradient(circle 170px at var(--wave-x) var(--wave-y),rgba(232,163,61,.10),transparent 70%);
+    opacity:0;transition:opacity .4s ease;
+    mix-blend-mode:screen;
+  }
+  .audio-reactive.is-active .wave-glow{opacity:.62}
+  .stage.audio-reactive.is-active{
+    box-shadow:inset 0 1px 0 var(--glass-hi),inset 0 -1px 0 var(--glass-lo),0 38px 78px -24px rgba(0,0,0,.58),0 0 42px rgba(232,163,61,.08);
+  }
+  .stage-caption{position:relative;z-index:3}
+  html:not([data-theme="light"]) .audio-reactive .wave-glow{
+    background:radial-gradient(circle 180px at var(--wave-x) var(--wave-y),rgba(46,229,157,.09),rgba(100,210,255,.04) 40%,transparent 72%);
+  }
+  html:not([data-theme="light"]) .audio-reactive.is-active{
+    border-color:rgba(100,210,255,.24);
+  }
+  @media (hover:none),(pointer:coarse){
+    .audio-reactive{transform:none!important}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .audio-reactive{transform:none!important;transition:none}
+    .audio-reactive .wave-glow{display:none}
+  }
 
   /* ---------- HIGHLIGHT STRIP ---------- */
   .hl-strip{padding-block:clamp(40px,6vw,72px)}
@@ -770,7 +826,7 @@
   .stems{display:grid;gap:14px}
   .stem{display:grid;grid-template-columns:130px 1fr;gap:16px;align-items:center}
   .stem .sname{font-family:var(--mono);font-size:.75rem;color:var(--dim);letter-spacing:.06em;text-transform:uppercase}
-  .stem .sbar{height:44px;border-radius:10px;background:rgba(0,0,0,.25);border:1px solid var(--line);overflow:hidden}
+  .stem .sbar{position:relative;height:44px;border-radius:10px;background:rgba(0,0,0,.25);border:1px solid var(--line);overflow:hidden}
   .stem canvas{display:block;width:100%;height:100%}
   @media (max-width:560px){.stem{grid-template-columns:1fr;gap:6px}}
 
@@ -1205,6 +1261,7 @@
   <div class="bd-cool"></div>
 </div>
 <canvas class="stars" aria-hidden="true"></canvas>
+<canvas class="day-flare" aria-hidden="true"></canvas>
 <div class="orbs" aria-hidden="true">
   <div class="orb a"></div>
   <div class="orb b"></div>
@@ -2010,66 +2067,285 @@
   })();
 
   /* ------------------------------------------------------------------
-     Waveform painting (canvas). Seeded so the shape is stable but each
-     canvas gets its own texture.
+     Day mode lens flare effect (light mode only).
+     A restrained optical flare sourced from the Porus logo that moves
+     subtly left-to-right across the page as you scroll. Peak intensity
+     when approaching the demo video, easing back after. Like the stars,
+     it's subtle — barely perceptible but adds dimensionality.
      ------------------------------------------------------------------ */
+  (function(){
+    var cv = document.querySelector('.day-flare');
+    if(!cv || !cv.getContext) return;
+    var ctx = cv.getContext('2d');
+    var demo = document.getElementById('demo');
+    var flares = [], W = 0, H = 0, demoTarget = 1, demoEnd = 2;
+    var wasDay = false, staticDrawn = false;
+
+    function isDay(){ return document.documentElement.getAttribute('data-theme') === 'light'; }
+
+    function build(){
+      var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      W = window.innerWidth; H = window.innerHeight;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      
+      flares.length = 0;
+      /* Create 5-7 lens flare ghosts in a line, staggered, subtle sizes */
+      var n = 6;
+      for(var i = 0; i < n; i++){
+        flares.push({
+          i: i,
+          x: .5,               /* Start center, will be driven by scroll */
+          y: .3 + Math.random() * .15, /* Slight vertical spread */
+          r: 20 + Math.random() * 35,  /* Radius: 20-55px */
+          base_a: .04 + Math.random() * .06, /* Base alpha: very subtle */
+          wobble: Math.random() * .8,  /* Wobble for organic feel */
+          wphase: Math.random() * 6.28
+        });
+      }
+      
+      if(demo){
+        var r = demo.getBoundingClientRect();
+        demoTarget = Math.max(1, r.top + window.scrollY - H * .55);
+        demoEnd = Math.max(demoTarget + 1, r.bottom + window.scrollY - H * 1.05);
+      }
+      staticDrawn = false;
+    }
+
+    function render(now){
+      var t = now / 1000;
+      var sy = window.scrollY;
+      
+      /* Intensity envelope (same logic as stars) */
+      var intensity = 0;
+      if(sy <= demoTarget){
+        var p = Math.min(1, Math.max(0, sy / demoTarget));
+        intensity = p * p * (3 - 2 * p);
+      } else if(sy < demoEnd){
+        intensity = Math.max(0, 1 - (sy - demoTarget) / H);
+      } else {
+        var q = Math.min(1, (sy - demoEnd) / (H * 1.4));
+        q = q * q * (3 - 2 * q);
+        intensity = Math.min(1, (sy - demoEnd) / (H * .18)) * (1 - q);
+      }
+      
+      ctx.clearRect(0, 0, W, H);
+      
+      for(var i = 0; i < flares.length; i++){
+        var f = flares[i];
+        /* Subtle left-to-right horizontal drift: 
+           At intensity 0: positioned right (x ~0.7)
+           At intensity 1: positioned center-left (x ~0.35)
+           Creating a smooth pan across the page */
+        var baseX = 0.7 - intensity * 0.35;
+        /* Add subtle wobble */
+        var wobbleAmount = f.wobble * 0.05 * Math.sin(t * 0.8 + f.wphase);
+        f.x = baseX + wobbleAmount;
+        
+        var x = f.x * W;
+        var y = f.y * H;
+        
+        /* Stagger the flares in depth: 1st is brightest, then fade */
+        var depthFade = Math.max(0, 1 - (i / flares.length) * 0.7);
+        var alpha = f.base_a * intensity * depthFade;
+        
+        /* Gentle glow with soft gradient */
+        var gradient = ctx.createRadialGradient(x, y, f.r * 0.1, x, y, f.r);
+        gradient.addColorStop(0, 'rgba(255, 220, 150, ' + (alpha * 1.2).toFixed(4) + ')');
+        gradient.addColorStop(0.5, 'rgba(255, 200, 100, ' + (alpha * 0.6).toFixed(4) + ')');
+        gradient.addColorStop(1, 'rgba(255, 180, 60, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, f.r, 0, 6.2832);
+        ctx.fill();
+      }
+    }
+
+    function frame(now){
+      requestAnimationFrame(frame);
+      var day = isDay();
+      if(!day){
+        if(wasDay){ ctx.clearRect(0, 0, W, H); wasDay = false; }
+        return;
+      }
+      if(!wasDay){ wasDay = true; staticDrawn = false; }
+      render(now);
+    }
+
+    window.addEventListener('resize', function(){ build(); });
+    build();
+    requestAnimationFrame(frame);
+  })();
+
   function envelope(p){
     return Math.abs(Math.sin(p*Math.PI*7.5))*0.62 + Math.abs(Math.sin(p*Math.PI*2.3+1.1))*0.38;
   }
   function seeded(seed){var s=seed;return function(){s=(s*1664525+1013904223)%4294967296;return s/4294967296;};}
 
-  function paintStage(){
-    var cv=document.getElementById('stage'); if(!cv) return;
+  function waveSurface(cv){
     var dpr=Math.min(window.devicePixelRatio||1,2), w=cv.clientWidth, h=cv.clientHeight;
-    if(!w||!h) return;
-    cv.width=w*dpr; cv.height=h*dpr;
-    var c=cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,w,h);
-    var rnd=seeded(20260211), bw=3, gap=3, n=Math.floor(w/(bw+gap)), mid=h/2;
+    if(!w||!h) return null;
+    var pw=Math.round(w*dpr), ph=Math.round(h*dpr);
+    if(cv.width!==pw||cv.height!==ph){cv.width=pw;cv.height=ph;}
+    var c=cv.getContext('2d');
+    c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
+    return {c:c,w:w,h:h};
+  }
+  function wavePalette(){
+    if(document.documentElement.getAttribute('data-theme')==='light'){
+      return {top:[245,217,168],mid:[212,154,50],low:[138,90,12],glow:[255,228,174]};
+    }
+    return {top:[169,255,224],mid:[46,229,157],low:[100,210,255],glow:[205,255,239]};
+  }
+  function waveRGBA(rgb,a){return 'rgba('+rgb[0]+','+rgb[1]+','+rgb[2]+','+Math.max(0,Math.min(1,a))+')';}
+  function ensureWavePhysics(state,count){
+    if(!state||state.displace&&state.displace.length===count)return;
+    state.displace=new Float32Array(count);
+    state.velocity=new Float32Array(count);
+    state.lastPhysics=0;state.hasMotion=0;
+  }
+  function stepWavePhysics(state,count,now,strength){
+    if(!state)return;
+    ensureWavePhysics(state,count);
+    var dt=state.lastPhysics?Math.min(1.45,Math.max(.35,(now-state.lastPhysics)/16.667)):1;
+    state.lastPhysics=now;
+    var d=state.displace,v=state.velocity;
+    var focus=state.x*(count-1)-state.direction*state.kick*2.2;
+    var radius=Math.max(5,count*.12),maxMotion=0;
+    for(var i=0;i<count;i++){
+      var near=Math.max(0,1-Math.abs(i-focus)/radius);
+      near=near*near*(3-2*near);
+      var living=.91+.09*Math.sin(now*.004+i*.31);
+      var target=near*state.energy*strength*living*(1+state.kick*.72);
+      var left=i?d[i-1]:d[i],right=i<count-1?d[i+1]:d[i];
+      var coupling=(left+right-d[i]*2)*.17;
+      v[i]+=((target-d[i])*.125+coupling)*dt;
+      v[i]*=Math.pow(.82,dt);
+      d[i]+=v[i]*dt;
+      if(d[i]<-.12)d[i]=-.12;
+      if(d[i]>.46)d[i]=.46;
+      maxMotion=Math.max(maxMotion,Math.abs(d[i]),Math.abs(v[i]));
+    }
+    state.kick*=Math.pow(.88,dt);
+    state.hasMotion=maxMotion;
+  }
+  function waveInfluence(state,index){
+    if(!state||!state.displace)return {lift:0,shift:0,activity:0};
+    var lift=state.displace[index]||0,velocity=state.velocity[index]||0;
+    return {lift:lift,shift:velocity*10,activity:Math.min(1,Math.abs(lift)*4+Math.abs(velocity)*7)};
+  }
+
+  function paintStage(cv,now){
+    cv=cv||document.getElementById('stage');if(!cv)return;
+    var s=waveSurface(cv);if(!s)return;
+    var c=s.c,w=s.w,h=s.h,pal=wavePalette(),state=cv._waveMotion;
+    var rnd=seeded(20260211),bw=3,gap=3,n=Math.floor(w/(bw+gap)),mid=h/2;
+    stepWavePhysics(state,n,now||performance.now(),.25);
     for(var i=0;i<n;i++){
-      var p=i/n, centre=1-Math.abs(p-0.5)*1.4;
-      var amp=Math.max(0.05, envelope(p)*(0.55+rnd()*0.45)*Math.max(0.08,centre));
-      var bh=Math.max(2, amp*(h*0.82));
-      var g=c.createLinearGradient(0,mid-bh/2,0,mid+bh/2);
-      g.addColorStop(0,'rgba(245,217,168,'+(0.22+amp*0.55)+')');
-      g.addColorStop(0.5,'rgba(232,163,61,'+(0.42+amp*0.55)+')');
-      g.addColorStop(1,'rgba(245,217,168,'+(0.22+amp*0.55)+')');
-      c.fillStyle=g;
-      c.fillRect(i*(bw+gap), mid-bh/2, bw, bh);
+      var p=i/n,centre=1-Math.abs(p-.5)*1.4;
+      var amp=Math.max(.05,envelope(p)*(.55+rnd()*.45)*Math.max(.08,centre));
+      var fx=waveInfluence(state,i);
+      amp=Math.min(1.08,Math.max(.025,amp+fx.lift));
+      var bh=Math.max(2,amp*(h*.82));
+      var localMid=mid+fx.shift;
+      var g=c.createLinearGradient(0,localMid-bh/2,0,localMid+bh/2);
+      g.addColorStop(0,waveRGBA(pal.top,.22+amp*.5+fx.activity*.16));
+      g.addColorStop(.5,waveRGBA(fx.activity>.16?pal.glow:pal.mid,.42+amp*.5));
+      g.addColorStop(1,waveRGBA(pal.low,.22+amp*.42));
+      c.fillStyle=g;c.fillRect(i*(bw+gap),localMid-bh/2,bw,bh);
     }
   }
 
-  function paintWave(cv){
-    var dpr=Math.min(window.devicePixelRatio||1,2), w=cv.clientWidth, h=cv.clientHeight;
-    if(!w||!h) return;
-    cv.width=w*dpr; cv.height=h*dpr;
-    var c=cv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,w,h);
+  function paintWave(cv,now){
+    var s=waveSurface(cv);if(!s)return;
+    var c=s.c,w=s.w,h=s.h,pal=wavePalette(),state=cv._waveMotion;
     var seed=parseInt(cv.getAttribute('data-seed')||'12345',10);
     var mode=cv.getAttribute('data-mode')||'full';
-    var rnd=seeded(seed), bw=2, gap=2, n=Math.floor(w/(bw+gap));
-    var color = getComputedStyle(cv).getPropertyValue('color') || '#E8A33D';
+    var rnd=seeded(seed),bw=2,gap=2,n=Math.floor(w/(bw+gap));
+    stepWavePhysics(state,n,now||performance.now(),.32);
     for(var i=0;i<n;i++){
-      var p=i/n, gate=(p<0.02||p>0.985)?0.12:1, e=envelope(p), amp;
-      if(mode==='bed'){ amp=Math.max(0.10, (0.30+0.16*Math.sin(p*Math.PI*3.1))*(0.85+rnd()*0.3)); }
-      else if(mode==='voice'){ amp=Math.max(0.05, Math.pow(e,1.5)*(0.6+rnd()*0.4)*gate); }
-      else { amp=Math.max(0.06, e*(0.55+rnd()*0.45)*gate); }
-      var bh=Math.max(2, amp*(h-6));
-      var y=(h-bh)/2;
+      var p=i/n,gate=(p<.02||p>.985)?.12:1,e=envelope(p),amp;
+      if(mode==='bed'){amp=Math.max(.10,(.30+.16*Math.sin(p*Math.PI*3.1))*(.85+rnd()*.3));}
+      else if(mode==='voice'){amp=Math.max(.05,Math.pow(e,1.5)*(.6+rnd()*.4)*gate);}
+      else{amp=Math.max(.06,e*(.55+rnd()*.45)*gate);}
+      var fx=waveInfluence(state,i);
+      amp=Math.min(1.08,Math.max(.025,amp+fx.lift));
+      var bh=Math.max(2,amp*(h-6));
+      var y=(h-bh)/2+fx.shift*.5;
       var g=c.createLinearGradient(0,y,0,y+bh);
-      g.addColorStop(0,'rgba(245,217,168,'+(0.35+amp*0.5)+')');
-      g.addColorStop(0.5,'rgba(232,163,61,'+(0.55+amp*0.45)+')');
-      g.addColorStop(1,'rgba(139,90,12,'+(0.30+amp*0.4)+')');
-      c.fillStyle=g;
-      c.fillRect(i*(bw+gap),y,bw,bh);
+      g.addColorStop(0,waveRGBA(pal.top,.30+amp*.48+fx.activity*.14));
+      g.addColorStop(.5,waveRGBA(fx.activity>.16?pal.glow:pal.mid,.52+amp*.44));
+      g.addColorStop(1,waveRGBA(pal.low,.28+amp*.38));
+      c.fillStyle=g;c.fillRect(i*(bw+gap),y,bw,bh);
     }
+  }
+
+  function renderWaveMotion(cv,now){
+    var m=cv._waveMotion;if(!m)return;
+    m.frame=0;
+    m.x+=(m.targetX-m.x)*.18;m.y+=(m.targetY-m.y)*.16;
+    m.energy+=(m.targetEnergy-m.energy)*(m.targetEnergy>m.energy?.18:.11);
+    var surface=m.surface;
+    surface.style.setProperty('--wave-x',(m.x*100).toFixed(2)+'%');
+    surface.style.setProperty('--wave-y',(m.y*100).toFixed(2)+'%');
+    var tilt=surface.classList.contains('stage')?1.15:.55;
+    surface.style.setProperty('--wave-rx',((.5-m.y)*tilt*m.energy).toFixed(3)+'deg');
+    surface.style.setProperty('--wave-ry',((m.x-.5)*tilt*m.energy).toFixed(3)+'deg');
+    if(cv.id==='stage')paintStage(cv,now);else paintWave(cv,now);
+    var moving=Math.abs(m.targetX-m.x)>.001||Math.abs(m.targetY-m.y)>.001||Math.abs(m.targetEnergy-m.energy)>.002;
+    if(m.targetEnergy>.001||m.energy>.003||m.hasMotion>.001||m.kick>.002||moving)m.frame=requestAnimationFrame(function(t){renderWaveMotion(cv,t);});
+  }
+  function requestWaveMotion(cv){
+    var m=cv._waveMotion;if(m&&!m.frame)m.frame=requestAnimationFrame(function(t){renderWaveMotion(cv,t);});
+  }
+  function makeWaveInteractive(cv){
+    if(reduce)return;
+    var surface=cv.closest('.stage,.waveframe,.sbar');if(!surface)return;
+    surface.classList.add('audio-reactive');
+    var glow=document.createElement('span');glow.className='wave-glow';glow.setAttribute('aria-hidden','true');
+    surface.appendChild(glow);
+    var m=cv._waveMotion={
+      x:.5,y:.5,targetX:.5,targetY:.5,energy:0,targetEnergy:0,
+      direction:0,kick:0,hasMotion:0,frame:0,surface:surface,
+      displace:null,velocity:null,lastPhysics:0
+    };
+    function point(e){
+      var r=surface.getBoundingClientRect();
+      var nextX=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+      var travel=nextX-m.targetX;
+      if(Math.abs(travel)>.0005)m.direction=travel<0?-1:1;
+      m.kick=Math.min(1.35,m.kick+Math.abs(travel)*7.5+(e.type==='pointerenter'?.12:0));
+      m.targetX=nextX;
+      m.targetY=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+      m.targetEnergy=1;surface.classList.add('is-active');requestWaveMotion(cv);
+    }
+    surface.addEventListener('pointerenter',point,{passive:true});
+    surface.addEventListener('pointermove',point,{passive:true});
+    surface.addEventListener('pointerleave',function(){
+      m.targetEnergy=0;surface.classList.remove('is-active');requestWaveMotion(cv);
+    },{passive:true});
+    surface.addEventListener('pointerdown',function(e){
+      m.kick=Math.min(1.35,m.kick+.55);
+      point(e);
+      if(e.pointerType==='touch')setTimeout(function(){m.targetEnergy=0;surface.classList.remove('is-active');requestWaveMotion(cv);},700);
+    },{passive:true});
   }
 
   function paintAll(){
     paintStage();
     var canvases=document.querySelectorAll('canvas.pw');
-    for(var i=0;i<canvases.length;i++) paintWave(canvases[i]);
+    for(var i=0;i<canvases.length;i++)paintWave(canvases[i]);
   }
   paintAll();
-  var rt; window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(paintAll,120);});
+  var interactiveWaves=document.querySelectorAll('#stage,canvas.pw');
+  for(var iw=0;iw<interactiveWaves.length;iw++)makeWaveInteractive(interactiveWaves[iw]);
+  var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(paintAll,120);});
+  if('MutationObserver' in window){
+    new MutationObserver(function(changes){
+      for(var i=0;i<changes.length;i++)if(changes[i].attributeName==='data-theme'){paintAll();break;}
+    }).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  }
 
   /* ------------------------------------------------------------------
      Pinned steps
