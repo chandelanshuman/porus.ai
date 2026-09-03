@@ -1128,3 +1128,228 @@
   updateCinemaButton();
   requestFrame();
 })();
+
+/* =========================================================
+   Divine auth portal — light takeover + full-screen sign-in
+   ========================================================= */
+(() => {
+  "use strict";
+
+  const portal = document.querySelector("[data-auth-portal]");
+  if (!portal) return;
+
+  const openers = document.querySelectorAll("[data-auth-open]");
+  const closeBtn = portal.querySelector("[data-auth-close]");
+  const scene = portal.querySelector(".auth-scene");
+  const tabs = Array.from(portal.querySelectorAll("[data-auth-tab]"));
+  const underline = portal.querySelector(".auth-tab-underline");
+  const forms = {
+    signin: portal.querySelector('[data-auth-form="signin"]'),
+    signup: portal.querySelector('[data-auth-form="signup"]'),
+  };
+  const titleEl = portal.querySelector("[data-auth-title]");
+  const subEl = portal.querySelector("[data-auth-sub]");
+
+  const copy = {
+    signin: {
+      title: "Enter the studio",
+      sub: "Sign in with the account you use for authorized clip access.",
+    },
+    signup: {
+      title: "Create your account",
+      sub: "Tell us who you are. We keep human authority throughout every review.",
+    },
+  };
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let lastOpener = null;
+  let currentMode = "signin";
+  let sceneListener = null;
+
+  function setLightOrigin(el) {
+    let x = window.innerWidth / 2;
+    let y = window.innerHeight / 2;
+    if (el && typeof el.getBoundingClientRect === "function") {
+      const rect = el.getBoundingClientRect();
+      if (rect.width && rect.height) {
+        x = rect.left + rect.width / 2;
+        y = rect.top + rect.height / 2;
+      }
+    }
+    portal.style.setProperty("--lx", `${x}px`);
+    portal.style.setProperty("--ly", `${y}px`);
+  }
+
+  function positionUnderline() {
+    if (!underline) return;
+    const active = tabs.find((tab) => tab.classList.contains("is-active"));
+    if (!active) return;
+    const tabsRect = active.parentElement.getBoundingClientRect();
+    const rect = active.getBoundingClientRect();
+    underline.style.width = `${rect.width}px`;
+    underline.style.transform = `translateX(${rect.left - tabsRect.left - 6}px)`;
+  }
+
+  function switchTab(mode) {
+    if (mode !== "signin" && mode !== "signup") return;
+    currentMode = mode;
+    tabs.forEach((tab) => {
+      const isActive = tab.dataset.authTab === mode;
+      tab.classList.toggle("is-active", isActive);
+      tab.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+    Object.entries(forms).forEach(([key, form]) => {
+      if (!form) return;
+      if (key === mode) form.removeAttribute("hidden");
+      else form.setAttribute("hidden", "");
+    });
+    if (titleEl) titleEl.textContent = copy[mode].title;
+    if (subEl) subEl.textContent = copy[mode].sub;
+    requestAnimationFrame(positionUnderline);
+  }
+
+  function openPortal(fromEl) {
+    if (!portal.hasAttribute("hidden") && portal.classList.contains("is-open")) return;
+    lastOpener = fromEl || null;
+    setLightOrigin(fromEl);
+    portal.hidden = false;
+    portal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("auth-active");
+    portal.classList.remove("is-closing", "is-open");
+    portal.classList.add("is-priming");
+
+    // next frame → start bloom
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        portal.classList.remove("is-priming");
+        portal.classList.add("is-blooming");
+      });
+    });
+
+    const bloomHold = reduceMotion ? 220 : 1600;
+    window.setTimeout(() => {
+      portal.classList.add("is-open");
+      requestAnimationFrame(positionUnderline);
+      // Focus first field once scene is in
+      window.setTimeout(() => {
+        const focusable = portal.querySelector(
+          `.auth-form[data-auth-form="${currentMode}"] input, .auth-form:not([hidden]) input`
+        );
+        if (focusable) focusable.focus({ preventScroll: true });
+      }, reduceMotion ? 60 : 640);
+    }, bloomHold);
+  }
+
+  function closePortal() {
+    if (portal.hasAttribute("hidden")) return;
+    portal.classList.remove("is-priming", "is-blooming");
+    portal.classList.add("is-closing");
+
+    if (sceneListener) scene.removeEventListener("animationend", sceneListener);
+    sceneListener = (event) => {
+      if (event.target !== scene) return;
+      scene.removeEventListener("animationend", sceneListener);
+      sceneListener = null;
+      finalizeClose();
+    };
+    scene.addEventListener("animationend", sceneListener);
+    // Safety fallback
+    window.setTimeout(finalizeClose, reduceMotion ? 260 : 900);
+  }
+
+  let finalized = false;
+  function finalizeClose() {
+    if (finalized) return;
+    finalized = true;
+    portal.classList.remove("is-open", "is-closing", "is-blooming", "is-priming");
+    portal.hidden = true;
+    portal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("auth-active");
+    if (lastOpener && typeof lastOpener.focus === "function") {
+      try { lastOpener.focus({ preventScroll: false }); } catch (_) { /* noop */ }
+    }
+    // Allow reopening
+    window.setTimeout(() => { finalized = false; }, 60);
+  }
+
+  openers.forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      openPortal(btn);
+    });
+  });
+
+  if (closeBtn) closeBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    closePortal();
+  });
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", (event) => {
+      event.preventDefault();
+      switchTab(tab.dataset.authTab);
+    });
+  });
+
+  // Focus trap-lite + escape
+  document.addEventListener("keydown", (event) => {
+    if (portal.hasAttribute("hidden")) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closePortal();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = portal.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (!portal.hasAttribute("hidden")) positionUnderline();
+  }, { passive: true });
+
+  // Form submit handlers (stubbed — ready for backend/SSO wiring)
+  Object.entries(forms).forEach(([mode, form]) => {
+    if (!form) return;
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(form).entries());
+      const submit = form.querySelector(".auth-submit");
+      if (submit) {
+        const original = submit.textContent;
+        submit.disabled = true;
+        submit.textContent = mode === "signin" ? "Signing in…" : "Creating account…";
+        window.setTimeout(() => {
+          submit.disabled = false;
+          submit.textContent = original;
+          console.info(`[porus.auth] ${mode} payload`, data);
+        }, 900);
+      }
+    });
+  });
+
+  portal.querySelectorAll("[data-auth-provider]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const provider = btn.dataset.authProvider;
+      console.info(`[porus.auth] SSO requested`, provider);
+      btn.animate(
+        [{ transform: "scale(1)" }, { transform: "scale(0.97)" }, { transform: "scale(1)" }],
+        { duration: 260, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
+      );
+    });
+  });
+
+  // Initialize tab underline once fonts settle
+  window.addEventListener("load", () => requestAnimationFrame(positionUnderline), { once: true });
+})();

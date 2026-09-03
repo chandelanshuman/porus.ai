@@ -71,7 +71,7 @@
         <a href="#studio">Studio</a>
         <a href="#platform">Platform</a>
         <a href="#trust">Trust</a>
-        <a class="nav-action" href="mailto:hello@porus.ai?subject=Build%20with%20Porus">Build with us</a>
+        <button class="nav-action" type="button" data-auth-open>Build with us</button>
       </div>
     </nav>
   </header>
@@ -94,7 +94,7 @@
           <p class="hero-detail">We begin with approval-first spoken-media localization, designed to carry more of the original moment and keep people in control.</p>
           <div class="hero-actions">
             <a class="button button--light" href="#studio">Meet Porus Studio</a>
-            <a class="button button--glass" href="mailto:hello@porus.ai?subject=Build%20with%20Porus">Build with us</a>
+            <button class="button button--glass" type="button" data-auth-open>Build with us</button>
           </div>
         </div>
 
@@ -269,7 +269,7 @@
         <h2 id="closing-title">Help expression travel farther.</h2>
         <div>
           <p>We are looking for thoughtful design partners with authorized short-form media and real localization problems.</p>
-          <a class="button button--light" href="mailto:hello@porus.ai?subject=Build%20with%20Porus">Build the first chapter with us</a>
+          <button class="button button--light" type="button" data-auth-open>Build the first chapter with us</button>
         </div>
       </div>
     </section>
@@ -285,5 +285,253 @@
     </div>
     <div class="shell footer-bottom"><span>© <span id="year">2026</span> Porus.ai</span><span>Technical alpha. Selected tests only.</span></div>
   </footer>
+
+  <!-- Divine auth portal -->
+  <div class="auth-portal" data-auth-portal hidden aria-hidden="true">
+    <div class="auth-bloom" aria-hidden="true"></div>
+    <div class="auth-veil" aria-hidden="true"></div>
+    <div class="auth-rays" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="auth-scene" role="dialog" aria-modal="true" aria-labelledby="auth-welcome-title" tabindex="-1">
+      <button class="auth-close" type="button" data-auth-close aria-label="Close and return to Porus.ai">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+
+      <aside class="auth-welcome" aria-hidden="false">
+        <div class="auth-worlds" aria-hidden="true">
+          <svg class="auth-worlds-svg" viewBox="0 0 800 900" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <linearGradient id="authSky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#0a2130"/>
+                <stop offset="0.55" stop-color="#0b2635"/>
+                <stop offset="1" stop-color="#061a24"/>
+              </linearGradient>
+              <radialGradient id="authAuroraA" cx="0.35" cy="0.4" r="0.7">
+                <stop offset="0" stop-color="#75e5c8" stop-opacity="0.35"/>
+                <stop offset="0.6" stop-color="#75e5c8" stop-opacity="0.08"/>
+                <stop offset="1" stop-color="#75e5c8" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="authAuroraB" cx="0.75" cy="0.3" r="0.6">
+                <stop offset="0" stop-color="#b18cff" stop-opacity="0.28"/>
+                <stop offset="1" stop-color="#b18cff" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="orbSun" cx="0.35" cy="0.35">
+                <stop offset="0" stop-color="#fff6da"/>
+                <stop offset="0.45" stop-color="#f5d9a8"/>
+                <stop offset="0.85" stop-color="#e8a33d" stop-opacity="0.55"/>
+                <stop offset="1" stop-color="#e8a33d" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="orbMoon" cx="0.35" cy="0.35">
+                <stop offset="0" stop-color="#f0f6ff"/>
+                <stop offset="0.7" stop-color="#c8d6e2" stop-opacity="0.85"/>
+                <stop offset="1" stop-color="#c8d6e2" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="orbTeal" cx="0.35" cy="0.35">
+                <stop offset="0" stop-color="#e7fff6"/>
+                <stop offset="0.55" stop-color="#75e5c8" stop-opacity="0.8"/>
+                <stop offset="1" stop-color="#75e5c8" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="orbAmber" cx="0.35" cy="0.35">
+                <stop offset="0" stop-color="#ffe6b5"/>
+                <stop offset="0.6" stop-color="#e8a33d" stop-opacity="0.55"/>
+                <stop offset="1" stop-color="#e8a33d" stop-opacity="0"/>
+              </radialGradient>
+              <radialGradient id="orbDust" cx="0.4" cy="0.35">
+                <stop offset="0" stop-color="#cfe2ff"/>
+                <stop offset="0.6" stop-color="#70d8ed" stop-opacity="0.6"/>
+                <stop offset="1" stop-color="#70d8ed" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="riverGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#75e5c8" stop-opacity="0"/>
+                <stop offset="0.15" stop-color="#75e5c8" stop-opacity="0.9"/>
+                <stop offset="0.5" stop-color="#a8f4dd"/>
+                <stop offset="0.85" stop-color="#75e5c8" stop-opacity="0.9"/>
+                <stop offset="1" stop-color="#75e5c8" stop-opacity="0"/>
+              </linearGradient>
+              <filter id="orbGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="6" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="riverGlow" x="-20%" y="-100%" width="140%" height="300%">
+                <feGaussianBlur stdDeviation="3"/>
+              </filter>
+            </defs>
+
+            <rect width="800" height="900" fill="url(#authSky)"/>
+            <rect width="800" height="900" fill="url(#authAuroraA)"/>
+            <rect width="800" height="900" fill="url(#authAuroraB)"/>
+
+            <g class="auth-stars" aria-hidden="true">
+              <circle cx="40"  cy="50"  r="1.6" fill="#ffffff" opacity="0.95"/>
+              <circle cx="90"  cy="110" r="1.1" fill="#ffffff" opacity="0.85"/>
+              <circle cx="150" cy="70"  r="1.4" fill="#fdf6da" opacity="0.9"/>
+              <circle cx="210" cy="140" r="0.9" fill="#ffffff" opacity="0.7"/>
+              <circle cx="270" cy="90"  r="1.7" fill="#ffffff" opacity="1"/>
+              <circle cx="330" cy="40"  r="1.0" fill="#ffffff" opacity="0.75"/>
+              <circle cx="380" cy="160" r="1.3" fill="#e7fff6" opacity="0.9"/>
+              <circle cx="440" cy="80"  r="1.9" fill="#ffffff" opacity="1"/>
+              <circle cx="500" cy="130" r="1.0" fill="#ffffff" opacity="0.7"/>
+              <circle cx="560" cy="60"  r="1.4" fill="#ffffff" opacity="0.9"/>
+              <circle cx="620" cy="180" r="1.1" fill="#fdf6da" opacity="0.85"/>
+              <circle cx="680" cy="90"  r="1.6" fill="#ffffff" opacity="0.95"/>
+              <circle cx="740" cy="50"  r="1.0" fill="#ffffff" opacity="0.75"/>
+              <circle cx="60"  cy="230" r="1.2" fill="#ffffff" opacity="0.8"/>
+              <circle cx="120" cy="290" r="0.9" fill="#ffffff" opacity="0.6"/>
+              <circle cx="200" cy="240" r="1.5" fill="#e7fff6" opacity="0.95"/>
+              <circle cx="290" cy="310" r="1.1" fill="#ffffff" opacity="0.75"/>
+              <circle cx="360" cy="260" r="0.9" fill="#ffffff" opacity="0.65"/>
+              <circle cx="430" cy="330" r="1.4" fill="#ffffff" opacity="0.9"/>
+              <circle cx="500" cy="260" r="1.0" fill="#ffffff" opacity="0.7"/>
+              <circle cx="570" cy="320" r="1.3" fill="#fdf6da" opacity="0.85"/>
+              <circle cx="640" cy="250" r="1.1" fill="#ffffff" opacity="0.75"/>
+              <circle cx="720" cy="300" r="1.6" fill="#ffffff" opacity="0.95"/>
+              <circle cx="760" cy="220" r="0.9" fill="#ffffff" opacity="0.65"/>
+              <circle cx="30"  cy="380" r="1.0" fill="#ffffff" opacity="0.7"/>
+              <circle cx="100" cy="420" r="1.3" fill="#e7fff6" opacity="0.85"/>
+              <circle cx="180" cy="380" r="0.9" fill="#ffffff" opacity="0.6"/>
+              <circle cx="260" cy="440" r="1.5" fill="#ffffff" opacity="0.95"/>
+              <circle cx="350" cy="400" r="1.0" fill="#ffffff" opacity="0.7"/>
+              <circle cx="430" cy="450" r="1.2" fill="#ffffff" opacity="0.8"/>
+              <circle cx="510" cy="400" r="0.9" fill="#fdf6da" opacity="0.65"/>
+              <circle cx="590" cy="460" r="1.4" fill="#ffffff" opacity="0.9"/>
+              <circle cx="660" cy="420" r="1.1" fill="#ffffff" opacity="0.75"/>
+              <circle cx="740" cy="470" r="1.6" fill="#ffffff" opacity="0.95"/>
+            </g>
+            <g class="auth-stars-halo" aria-hidden="true">
+              <circle cx="270" cy="90"  r="4.5" fill="#ffffff" opacity="0.25"/>
+              <circle cx="440" cy="80"  r="5"   fill="#ffffff" opacity="0.28"/>
+              <circle cx="680" cy="90"  r="4"   fill="#ffffff" opacity="0.22"/>
+              <circle cx="200" cy="240" r="4"   fill="#e7fff6" opacity="0.22"/>
+              <circle cx="720" cy="300" r="4.5" fill="#ffffff" opacity="0.25"/>
+              <circle cx="260" cy="440" r="4"   fill="#ffffff" opacity="0.22"/>
+              <circle cx="740" cy="470" r="4.5" fill="#ffffff" opacity="0.25"/>
+            </g>
+
+            <!-- Mountain ridges (three layers, back to front) -->
+            <path class="auth-ridge auth-ridge--3"
+              d="M0 650 L90 520 L180 600 L280 470 L370 560 L470 490 L570 580 L660 500 L760 570 L800 540 L800 900 L0 900 Z"
+              fill="#122a37" opacity="0.85"/>
+            <path class="auth-ridge auth-ridge--2"
+              d="M0 720 L110 620 L220 690 L340 590 L440 670 L560 590 L680 680 L800 640 L800 900 L0 900 Z"
+              fill="#0c1e2a" opacity="0.95"/>
+            <path class="auth-ridge auth-ridge--1"
+              d="M0 790 L120 720 L240 780 L380 700 L500 770 L640 710 L760 780 L800 760 L800 900 L0 900 Z"
+              fill="#071722"/>
+
+            <!-- River glow bed -->
+            <ellipse cx="400" cy="822" rx="520" ry="26" fill="#75e5c8" opacity="0.22" filter="url(#riverGlow)"/>
+            <ellipse cx="400" cy="822" rx="440" ry="14" fill="#a8f4dd" opacity="0.28" filter="url(#riverGlow)"/>
+
+            <!-- Digital river -->
+            <g class="auth-river" filter="url(#riverGlow)">
+              <path class="auth-river__stream auth-river__stream--back"
+                d="M-40 810 Q160 792 320 812 T680 808 T860 804"
+                stroke="url(#riverGrad)" stroke-width="4.5" fill="none" opacity="0.7"/>
+              <path class="auth-river__stream auth-river__stream--mid"
+                d="M-40 820 Q200 802 400 824 T860 818"
+                stroke="url(#riverGrad)" stroke-width="3" fill="none" opacity="0.95"/>
+              <path class="auth-river__stream auth-river__stream--front"
+                d="M-40 832 Q220 818 440 836 T860 830"
+                stroke="url(#riverGrad)" stroke-width="2" fill="none" opacity="1"/>
+            </g>
+            <g class="auth-river-bits" aria-hidden="true">
+              <rect x="40"  y="814" width="10" height="3" rx="1.5" fill="#a8f4dd"/>
+              <rect x="110" y="822" width="7"  height="3" rx="1.5" fill="#75e5c8"/>
+              <rect x="180" y="818" width="12" height="3" rx="1.5" fill="#a8f4dd"/>
+              <rect x="260" y="826" width="8"  height="3" rx="1.5" fill="#75e5c8"/>
+              <rect x="340" y="820" width="11" height="3" rx="1.5" fill="#a8f4dd"/>
+              <rect x="420" y="828" width="7"  height="3" rx="1.5" fill="#75e5c8"/>
+              <rect x="500" y="822" width="10" height="3" rx="1.5" fill="#a8f4dd"/>
+              <rect x="580" y="830" width="8"  height="3" rx="1.5" fill="#75e5c8"/>
+              <rect x="660" y="820" width="11" height="3" rx="1.5" fill="#a8f4dd"/>
+              <rect x="740" y="828" width="7"  height="3" rx="1.5" fill="#75e5c8"/>
+            </g>
+
+            <!-- Foreground floor mist -->
+            <rect x="0" y="850" width="800" height="50" fill="url(#authAuroraA)" opacity="0.4"/>
+          </svg>
+          <div class="auth-worlds-mist" aria-hidden="true"></div>
+        </div>
+
+        <div class="auth-welcome-copy">
+          <span class="auth-eyebrow">Porus.ai</span>
+          <h2 id="auth-welcome-title">Welcome to the divine.</h2>
+          <p class="auth-welcome-lede">A quieter place where language behaves like light — carrying the person, not only the words.</p>
+          <div class="auth-welcome-divider" aria-hidden="true"><span></span></div>
+          <p class="auth-welcome-detail">Sign in to continue, or create an account to help shape what expression becomes next.</p>
+        </div>
+      </aside>
+
+      <section class="auth-forms" aria-labelledby="auth-form-title">
+        <header class="auth-forms-head">
+          <span class="auth-forms-eyebrow">Build with Porus</span>
+          <h3 id="auth-form-title" data-auth-title>Enter the studio</h3>
+          <p class="auth-forms-sub" data-auth-sub>Sign in with the account you use for authorized clip access.</p>
+        </header>
+
+        <div class="auth-tabs" role="tablist" aria-label="Sign in or create an account">
+          <button class="auth-tab is-active" role="tab" type="button" data-auth-tab="signin" aria-selected="true">Sign in</button>
+          <button class="auth-tab" role="tab" type="button" data-auth-tab="signup" aria-selected="false">Create account</button>
+          <span class="auth-tab-underline" aria-hidden="true"></span>
+        </div>
+
+        <div class="auth-social">
+          <button type="button" class="auth-social-btn" data-auth-provider="google">
+            <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
+              <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.24 1.4-1.66 4.1-5.5 4.1-3.31 0-6-2.74-6-6.12S8.69 5.96 12 5.96c1.88 0 3.14.8 3.86 1.49l2.63-2.54C16.83 3.35 14.62 2.4 12 2.4 6.86 2.4 2.72 6.54 2.72 11.68S6.86 20.96 12 20.96c6.93 0 8.98-4.86 8.98-7.32 0-.49-.05-.86-.12-1.24H12z"/>
+            </svg>
+            <span>Continue with Google</span>
+          </button>
+          <button type="button" class="auth-social-btn" data-auth-provider="github">
+            <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.5 2.87 8.32 6.84 9.67.5.1.68-.22.68-.5v-1.72c-2.78.62-3.37-1.35-3.37-1.35-.46-1.18-1.12-1.5-1.12-1.5-.91-.64.07-.62.07-.62 1.01.07 1.55 1.06 1.55 1.06.9 1.58 2.36 1.13 2.94.86.09-.67.35-1.13.64-1.39-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.29.1-2.69 0 0 .84-.27 2.75 1.05a9.36 9.36 0 015 0c1.9-1.32 2.74-1.05 2.74-1.05.55 1.4.2 2.43.1 2.69.64.72 1.03 1.63 1.03 2.75 0 3.93-2.35 4.79-4.58 5.05.36.32.68.94.68 1.9v2.82c0 .28.18.6.69.5C19.14 20.58 22 16.76 22 12.26 22 6.58 17.52 2 12 2z"/>
+            </svg>
+            <span>Continue with GitHub</span>
+          </button>
+        </div>
+
+        <div class="auth-divider"><span>or</span></div>
+
+        <form class="auth-form" data-auth-form="signin" novalidate>
+          <label class="auth-field">
+            <span>Email</span>
+            <input type="email" name="email" required autocomplete="email" placeholder="you@studio.com">
+          </label>
+          <label class="auth-field">
+            <span>Password</span>
+            <input type="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+          </label>
+          <div class="auth-form-row">
+            <label class="auth-check"><input type="checkbox" name="remember"><span>Keep me signed in</span></label>
+            <a class="auth-link" href="mailto:hello@porus.ai?subject=Password%20reset">Forgot password?</a>
+          </div>
+          <button class="auth-submit" type="submit">Enter the studio</button>
+        </form>
+
+        <form class="auth-form" data-auth-form="signup" hidden novalidate>
+          <label class="auth-field">
+            <span>Full name</span>
+            <input type="text" name="name" required autocomplete="name" placeholder="Your full name">
+          </label>
+          <label class="auth-field">
+            <span>Work email</span>
+            <input type="email" name="email" required autocomplete="email" placeholder="you@studio.com">
+          </label>
+          <label class="auth-field">
+            <span>Password</span>
+            <input type="password" name="password" required autocomplete="new-password" placeholder="At least 8 characters" minlength="8">
+          </label>
+          <label class="auth-check auth-check--stack">
+            <input type="checkbox" name="terms" required>
+            <span>I agree to Porus terms and the approval-first review process.</span>
+          </label>
+          <button class="auth-submit" type="submit">Create your account</button>
+        </form>
+
+        <p class="auth-fine">Approval-first access. Human authority throughout.</p>
+      </section>
+    </div>
+  </div>
 </body>
 </html>
