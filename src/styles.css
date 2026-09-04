@@ -1494,20 +1494,21 @@ p {
 }
 
 .platform-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
-  align-items: end;
-  gap: clamp(42px, 8vw, 120px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 2.4vw, 30px);
+  max-width: 78ch;
 }
 
 .platform-head h2 {
-  max-width: 13ch;
+  max-width: 16ch;
 }
 
 .platform-head p {
-  max-width: 42ch;
-  padding-bottom: 10px;
+  max-width: 54ch;
   color: var(--ink-soft);
+  font-size: clamp(1.05rem, 1.3vw, 1.2rem);
+  line-height: 1.55;
 }
 
 .expression-band {
