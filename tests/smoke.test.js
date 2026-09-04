@@ -10,6 +10,7 @@ describe("porus.ai bundle contract", () => {
   it("index.html has an auth portal and three build-with-us openers", () => {
     const html = readFileSync(resolve(root, "index.html"), "utf8");
     expect(html).toContain("data-auth-portal");
+    expect(html).toContain("data-expression-canvas");
     const opens = html.match(/data-auth-open/g) ?? [];
     expect(opens.length).toBe(3);
   });
@@ -29,5 +30,8 @@ describe("porus.ai bundle contract", () => {
     expect(js).toContain("porus:stars-converge");
     expect(js).toContain("porus:stars-aperture");
     expect(js).toContain("beginPortalSequence");
+    expect(js).toContain("paintExpressionField");
+    expect(js).toContain("beginExpressionFlight");
+    expect(js).toContain("paintExpressionFlight");
   });
 });

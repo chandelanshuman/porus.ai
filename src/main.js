@@ -8,6 +8,7 @@
   let pageVisible = !document.hidden;
   let rafId = 0;
   let lastStarFrame = 0;
+  let lastExpressionFrame = 0;
   let layoutDirty = true;
 
   root.classList.add("js");
@@ -273,6 +274,321 @@
     row.addEventListener("pointerleave", resetSuitePointer);
     row.addEventListener("pointercancel", resetSuitePointer);
   });
+
+  /* Living expression field */
+
+  const expressionField = document.querySelector("[data-expression-field]");
+  const expressionCanvas = expressionField?.querySelector("[data-expression-canvas]");
+  const expressionState = {
+    context: null,
+    width: 0,
+    height: 0,
+    dpr: 1,
+    visible: true,
+    pointerX: 0,
+    pointerY: 0,
+    targetX: 0,
+    targetY: 0,
+    cursorX: 0,
+    cursorY: 0,
+    cursorTargetX: 0,
+    cursorTargetY: 0,
+    pointerActive: false,
+    motes: [],
+    flight: null,
+    staticDrawn: false
+  };
+
+  function cubicPoint(start, controlA, controlB, end, amount) {
+    const inverse = 1 - amount;
+    const a = inverse * inverse * inverse;
+    const b = 3 * inverse * inverse * amount;
+    const c = 3 * inverse * amount * amount;
+    const d = amount * amount * amount;
+    return {
+      x: start.x * a + controlA.x * b + controlB.x * c + end.x * d,
+      y: start.y * a + controlA.y * b + controlB.y * c + end.y * d
+    };
+  }
+
+  function cubicTangent(start, controlA, controlB, end, amount) {
+    const inverse = 1 - amount;
+    return {
+      x: 3 * inverse * inverse * (controlA.x - start.x)
+        + 6 * inverse * amount * (controlB.x - controlA.x)
+        + 3 * amount * amount * (end.x - controlB.x),
+      y: 3 * inverse * inverse * (controlA.y - start.y)
+        + 6 * inverse * amount * (controlB.y - controlA.y)
+        + 3 * amount * amount * (end.y - controlB.y)
+    };
+  }
+
+  function buildExpressionMotes() {
+    if (!expressionCanvas) return;
+    const changed = sizeCanvas(expressionCanvas, expressionState);
+    if (!changed && expressionState.motes.length) return;
+    const random = seeded(8252026);
+    const count = Math.max(140, Math.min(210, Math.round(expressionState.width * expressionState.height / 1350)));
+    expressionState.motes = Array.from({ length: count }, (_, index) => {
+      const tint = random();
+      return {
+        origin: random(),
+        lane: (random() - 0.5) * expressionState.height * 0.3,
+        phase: random() * Math.PI * 2,
+        speed: 0.55 + random() * 0.8,
+        depth: 0.3 + random() * 0.7,
+        length: 2 + random() * 7,
+        width: 0.55 + random() * 1.05,
+        alpha: 0.28 + random() * 0.58,
+        color: tint < 0.7 ? [199, 241, 229] : tint < 0.86 ? [245, 217, 168] : [188, 169, 244],
+        bright: index % 13 === 0,
+        cursorOffsetX: 0,
+        cursorOffsetY: 0,
+        cursorReach: 0.17 + random() * 0.17,
+        cursorResponse: 0.035 + random() * 0.075,
+        cursorPolarity: random() < 0.76 ? 1 : -0.42,
+        cursorCurl: random() * 2 - 1
+      };
+    });
+    expressionState.cursorX = expressionState.width * 0.5;
+    expressionState.cursorY = expressionState.height * 0.5;
+    expressionState.cursorTargetX = expressionState.cursorX;
+    expressionState.cursorTargetY = expressionState.cursorY;
+    expressionState.staticDrawn = false;
+  }
+
+  function murmurationPoint(mote, amount, seconds) {
+    const { width, height, pointerX, pointerY } = expressionState;
+    const start = { x: width * 0.02, y: height * 0.69 };
+    const controlA = {
+      x: width * (0.25 + pointerX * 0.035),
+      y: height * (0.08 + pointerY * 0.06)
+    };
+    const controlB = {
+      x: width * (0.7 + pointerX * 0.045),
+      y: height * (0.9 + pointerY * 0.075)
+    };
+    const end = { x: width * 0.99, y: height * 0.29 };
+    const point = cubicPoint(start, controlA, controlB, end, amount);
+    const tangent = cubicTangent(start, controlA, controlB, end, amount);
+    const tangentLength = Math.hypot(tangent.x, tangent.y) || 1;
+    const tangentX = tangent.x / tangentLength;
+    const tangentY = tangent.y / tangentLength;
+    const flockEnvelope = 0.22 + Math.pow(Math.sin(amount * Math.PI), 0.72) * 0.92;
+    const breathingLane = mote.lane * flockEnvelope * (0.76 + Math.sin(seconds * 0.28 + mote.phase) * 0.24);
+    const drift = Math.sin(seconds * (0.22 + mote.depth * 0.14) + mote.phase * 1.7) * 7 * mote.depth;
+    point.x += -tangentY * (breathingLane + drift);
+    point.y += tangentX * (breathingLane + drift);
+
+    return { ...point, tangentX, tangentY };
+  }
+
+  function applyMoteCursor(point, mote) {
+    const deltaX = point.x - expressionState.cursorX;
+    const deltaY = point.y - expressionState.cursorY;
+    const distance = Math.hypot(deltaX, deltaY) || 1;
+    const reach = expressionState.width * mote.cursorReach;
+    const influence = expressionState.pointerActive
+      ? Math.exp(-Math.pow(distance / reach, 2))
+      : 0;
+    const radial = influence * 24 * mote.depth * mote.cursorPolarity;
+    const curl = influence * 15 * mote.depth * mote.cursorCurl;
+    const targetOffsetX = deltaX / distance * radial - deltaY / distance * curl;
+    const targetOffsetY = deltaY / distance * radial + deltaX / distance * curl;
+    mote.cursorOffsetX += (targetOffsetX - mote.cursorOffsetX) * mote.cursorResponse;
+    mote.cursorOffsetY += (targetOffsetY - mote.cursorOffsetY) * mote.cursorResponse;
+    point.x += mote.cursorOffsetX;
+    point.y += mote.cursorOffsetY;
+    return point;
+  }
+
+  function updateExpressionPointer() {
+    if (!expressionField || reduceMotion) return;
+    expressionState.pointerX += (expressionState.targetX - expressionState.pointerX) * 0.055;
+    expressionState.pointerY += (expressionState.targetY - expressionState.pointerY) * 0.055;
+    expressionState.cursorX += (expressionState.cursorTargetX - expressionState.cursorX) * 0.14;
+    expressionState.cursorY += (expressionState.cursorTargetY - expressionState.cursorY) * 0.14;
+    expressionField.style.setProperty("--field-shift-x", `${(expressionState.pointerX * 7).toFixed(2)}px`);
+    expressionField.style.setProperty("--field-shift-y", `${(expressionState.pointerY * 5).toFixed(2)}px`);
+  }
+
+  function paintExpressionField(now) {
+    const { context, width, height } = expressionState;
+    if (!context || !width || !height || !expressionState.visible) return;
+    if (reduceMotion && expressionState.staticDrawn) return;
+
+    const seconds = reduceMotion ? 3.8 : now / 1000;
+    context.clearRect(0, 0, width, height);
+    if (expressionState.flight) return;
+    context.save();
+    context.globalCompositeOperation = "lighter";
+
+    const glows = [
+      { amount: 0.34, radius: width * 0.18, color: [117, 229, 200], alpha: 0.095 },
+      { amount: 0.69, radius: width * 0.16, color: [112, 216, 237], alpha: 0.07 }
+    ];
+    const guideMote = { lane: 0, phase: 0, depth: 0.5 };
+    glows.forEach((glow) => {
+      const point = murmurationPoint(guideMote, glow.amount, seconds);
+      const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, glow.radius);
+      gradient.addColorStop(0, rgb(glow.color, glow.alpha));
+      gradient.addColorStop(1, rgb(glow.color, 0));
+      context.fillStyle = gradient;
+      context.beginPath();
+      context.arc(point.x, point.y, glow.radius, 0, Math.PI * 2);
+      context.fill();
+    });
+
+    expressionState.motes.forEach((mote) => {
+      const amount = (mote.origin + seconds * 0.0085 * mote.speed) % 1;
+      const point = applyMoteCursor(murmurationPoint(mote, amount, seconds), mote);
+      const edgeFade = Math.pow(Math.sin(amount * Math.PI), 0.52);
+      const shimmer = 0.72 + Math.sin(seconds * 0.7 + mote.phase) * 0.28;
+      const alpha = mote.alpha * edgeFade * shimmer;
+      const length = mote.length * (0.65 + mote.depth * 0.6);
+
+      if (mote.bright) {
+        const glow = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, 9 + mote.depth * 7);
+        glow.addColorStop(0, rgb(mote.color, alpha * 0.34));
+        glow.addColorStop(1, rgb(mote.color, 0));
+        context.fillStyle = glow;
+        context.beginPath();
+        context.arc(point.x, point.y, 9 + mote.depth * 7, 0, Math.PI * 2);
+        context.fill();
+      }
+
+      context.strokeStyle = rgb(mote.color, alpha);
+      context.lineWidth = mote.width;
+      context.lineCap = "round";
+      context.beginPath();
+      context.moveTo(point.x - point.tangentX * length * 0.5, point.y - point.tangentY * length * 0.5);
+      context.lineTo(point.x + point.tangentX * length * 0.5, point.y + point.tangentY * length * 0.5);
+      context.stroke();
+    });
+    context.restore();
+
+    if (reduceMotion) expressionState.staticDrawn = true;
+  }
+
+  if (finePointerQuery.matches && expressionCanvas) {
+    window.addEventListener("pointermove", (event) => {
+      if (reduceMotion || !expressionState.visible) return;
+      const rect = expressionCanvas.getBoundingClientRect();
+      expressionState.targetX = clamp((event.clientX / window.innerWidth - 0.5) * 2, -1, 1);
+      expressionState.targetY = clamp((event.clientY / window.innerHeight - 0.5) * 2, -1, 1);
+      expressionState.cursorTargetX = event.clientX - rect.left;
+      expressionState.cursorTargetY = event.clientY - rect.top;
+      expressionState.pointerActive = true;
+      requestFrame();
+    }, { passive: true });
+
+    document.documentElement.addEventListener("pointerleave", () => {
+      expressionState.targetX = 0;
+      expressionState.targetY = 0;
+      expressionState.pointerActive = false;
+      requestFrame();
+    }, { passive: true });
+  }
+
+  function beginExpressionFlight(event) {
+    const detail = event.detail || {};
+    const targetX = Number(detail.x);
+    const targetY = Number(detail.y);
+    if (reduceMotion || !expressionCanvas || !expressionState.motes.length
+      || !Number.isFinite(targetX) || !Number.isFinite(targetY)) return;
+
+    const now = performance.now();
+    const seconds = now / 1000;
+    const rect = expressionCanvas.getBoundingClientRect();
+    const particles = expressionState.motes.map((mote, index) => {
+      const amount = (mote.origin + seconds * 0.0085 * mote.speed) % 1;
+      const point = applyMoteCursor(murmurationPoint(mote, amount, seconds), mote);
+      const angle = index * 2.399963;
+      const arrivalRadius = 3 + (index * 11) % 18;
+      const startX = rect.left + point.x;
+      const startY = rect.top + point.y;
+      const distance = Math.hypot(targetX - startX, targetY - startY);
+      const normalX = -(targetY - startY) / (distance || 1);
+      const normalY = (targetX - startX) / (distance || 1);
+      const arc = (18 + (index % 9) * 7) * (index % 2 ? 1 : -1);
+      return {
+        ...mote,
+        startX,
+        startY,
+        targetX: targetX + Math.cos(angle) * arrivalRadius,
+        targetY: targetY + Math.sin(angle) * arrivalRadius * 0.62,
+        controlX: (startX + targetX) * 0.5 + normalX * arc,
+        controlY: (startY + targetY) * 0.5 + normalY * arc,
+        flightDelay: (index % 13) * 6 + (1 - mote.depth) * 34
+      };
+    });
+
+    expressionState.flight = {
+      id: detail.id,
+      startedAt: now,
+      duration: 920,
+      particles
+    };
+    expressionState.pointerActive = false;
+    requestFrame();
+  }
+
+  window.addEventListener("porus:stars-converge", beginExpressionFlight);
+
+  function paintExpressionFlight(context, now) {
+    const flight = expressionState.flight;
+    if (!flight) return;
+    const elapsed = now - flight.startedAt;
+
+    context.save();
+    context.globalCompositeOperation = "lighter";
+    flight.particles.forEach((particle) => {
+      const available = Math.max(1, flight.duration - particle.flightDelay);
+      const progress = clamp((elapsed - particle.flightDelay) / available);
+      const eased = progress * progress * (3 - 2 * progress);
+      const previousProgress = clamp(progress - mix(0.045, 0.014, eased));
+      const previousEased = previousProgress * previousProgress * (3 - 2 * previousProgress);
+      const curvePoint = (amount) => {
+        const inverse = 1 - amount;
+        return {
+          x: inverse * inverse * particle.startX
+            + 2 * inverse * amount * particle.controlX
+            + amount * amount * particle.targetX,
+          y: inverse * inverse * particle.startY
+            + 2 * inverse * amount * particle.controlY
+            + amount * amount * particle.targetY
+        };
+      };
+      const point = curvePoint(eased);
+      const tail = curvePoint(previousEased);
+      const arrival = smoothstep((progress - 0.78) / 0.22);
+      const alpha = particle.alpha * mix(0.72, 1.45, progress) * (1 - arrival * 0.94);
+      const trail = Math.hypot(point.x - tail.x, point.y - tail.y);
+
+      if (trail > 0.8) {
+        const gradient = context.createLinearGradient(tail.x, tail.y, point.x, point.y);
+        gradient.addColorStop(0, rgb(particle.color, 0));
+        gradient.addColorStop(1, rgb(particle.color, Math.min(0.94, alpha)));
+        context.strokeStyle = gradient;
+        context.lineWidth = particle.width * mix(0.8, 1.35, progress);
+        context.lineCap = "round";
+        context.beginPath();
+        context.moveTo(tail.x, tail.y);
+        context.lineTo(point.x, point.y);
+        context.stroke();
+      }
+
+      if (progress < 0.99) {
+        context.fillStyle = rgb(particle.color, Math.min(1, alpha));
+        context.beginPath();
+        context.arc(point.x, point.y, Math.max(0.65, particle.width * 0.72), 0, Math.PI * 2);
+        context.fill();
+      }
+    });
+    context.restore();
+
+    if (elapsed >= flight.duration) expressionState.flight = null;
+  }
 
   /* Starfield and continuous history-to-language warp */
 
@@ -547,6 +863,8 @@
           context.fill();
         }
       });
+
+      paintExpressionFlight(context, now);
 
       const gather = smoothstep(elapsed / flight.duration);
       const glowFade = 1 - smoothstep((gather - 0.72) / 0.28);
@@ -1173,6 +1491,7 @@
     configureHistory();
     buildStars();
     measureWarp();
+    if (expressionCanvas) buildExpressionMotes();
     sizeCinemaCanvases();
     audioPlayers.forEach(sizePlayerCanvas);
     updateHistory();
@@ -1195,6 +1514,7 @@
     updateJourney();
     updateHistory();
     updateSuitePointer();
+    updateExpressionPointer();
     updateCinemaScroll(now);
     updateCrossfade(now);
     updateCinemaProgress();
@@ -1208,6 +1528,11 @@
     if (now - lastStarFrame >= 30 || reduceMotion) {
       paintStars(now, window.scrollY);
       lastStarFrame = now;
+    }
+
+    if (expressionState.visible && (now - lastExpressionFrame >= 33 || reduceMotion)) {
+      paintExpressionField(now);
+      lastExpressionFrame = now;
     }
 
     if (cinemaState.visible) {
@@ -1232,6 +1557,7 @@
     const resizeObserver = new ResizeObserver(markLayoutDirty);
     resizeObserver.observe(document.documentElement);
     if (historyTrack) resizeObserver.observe(historyTrack);
+    if (expressionCanvas) resizeObserver.observe(expressionCanvas);
     if (cinemaCanvas) resizeObserver.observe(cinemaCanvas);
     audioPlayers.forEach((player) => {
       if (player.canvas) resizeObserver.observe(player.canvas);
@@ -1254,8 +1580,19 @@
       starState.pointerY = 0;
       starState.pointerTargetX = 0;
       starState.pointerTargetY = 0;
+      expressionState.pointerX = 0;
+      expressionState.pointerY = 0;
+      expressionState.targetX = 0;
+      expressionState.targetY = 0;
+      expressionState.pointerActive = false;
+      expressionState.flight = null;
+      expressionState.motes.forEach((mote) => {
+        mote.cursorOffsetX = 0;
+        mote.cursorOffsetY = 0;
+      });
     }
     starState.staticDrawn = false;
+    expressionState.staticDrawn = false;
     layoutDirty = true;
     requestFrame();
   }
@@ -1288,6 +1625,14 @@
       if (entries.some((entry) => entry.isIntersecting)) requestFrame();
     }, { rootMargin: "20% 0px" });
     cinemaVisibilityObserver.observe(cinemaSection);
+  }
+
+  if ("IntersectionObserver" in window && expressionField) {
+    const expressionVisibilityObserver = new IntersectionObserver((entries) => {
+      expressionState.visible = entries.some((entry) => entry.isIntersecting);
+      if (expressionState.visible) requestFrame();
+    }, { rootMargin: "15% 0px" });
+    expressionVisibilityObserver.observe(expressionField);
   }
 
   window.addEventListener("pageshow", markLayoutDirty, { passive: true });

@@ -613,93 +613,35 @@ body.auth-starflight .aurora {
 }
 
 .hero-score {
+  --field-shift-x: 0px;
+  --field-shift-y: 0px;
   position: relative;
   width: min(100%, 520px);
   aspect-ratio: 1;
   justify-self: end;
-  perspective: 900px;
-}
-
-.hero-score::before,
-.hero-score::after {
-  content: "";
-  position: absolute;
-  border-radius: 50%;
+  isolation: isolate;
 }
 
 .hero-score::before {
-  inset: 9%;
-  background: radial-gradient(circle at 43% 44%, rgba(219, 253, 241, 0.11), rgba(65, 217, 180, 0.05) 42%, transparent 70%);
-  box-shadow: inset 0 0 80px rgba(83, 229, 193, 0.06);
-}
-
-.hero-score::after {
-  inset: 41%;
-  background: rgba(240, 248, 240, 0.78);
-  box-shadow: 0 0 26px rgba(117, 229, 200, 0.7), 0 0 90px rgba(105, 207, 219, 0.32);
-  animation: core-breathe 4.5s ease-in-out infinite;
-}
-
-.signal-line {
+  content: "";
   position: absolute;
-  top: 50%;
-  left: 50%;
-  border: 1px solid rgba(185, 241, 225, 0.22);
-  border-radius: 50%;
-  transform: translate(-50%, -50%) rotate(-22deg);
-  box-shadow: 0 0 28px rgba(93, 229, 190, 0.05);
+  inset: 4% -4%;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse at 42% 38%, rgba(117, 229, 200, 0.09), transparent 42%),
+    radial-gradient(ellipse at 67% 64%, rgba(112, 216, 237, 0.06), transparent 48%),
+    radial-gradient(ellipse at 76% 28%, rgba(177, 140, 255, 0.05), transparent 40%);
+  filter: blur(24px);
+  transform: translate3d(var(--field-shift-x), var(--field-shift-y), 0);
+  transition: transform 900ms var(--ease-out);
 }
 
-.signal-line--one {
-  width: 54%;
-  height: 29%;
-  animation: signal-one 8s ease-in-out infinite alternate;
-}
-
-.signal-line--two {
-  width: 77%;
-  height: 43%;
-  border-color: rgba(116, 216, 237, 0.2);
-  animation: signal-two 11s ease-in-out infinite alternate;
-}
-
-.signal-line--three {
-  width: 96%;
-  height: 57%;
-  border-color: rgba(177, 140, 255, 0.16);
-  animation: signal-three 14s ease-in-out infinite alternate;
-}
-
-.signal-word {
+.expression-canvas {
   position: absolute;
-  color: var(--ink-faint);
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  opacity: 0.78;
-}
-
-.signal-word--one { top: 21%; left: 13%; }
-.signal-word--two { top: 33%; right: 8%; font-family: "Noto Sans Devanagari", sans-serif; font-size: 0.9rem; }
-.signal-word--three { bottom: 21%; left: 8%; }
-.signal-word--four { right: 16%; bottom: 13%; }
-
-@keyframes signal-one {
-  from { transform: translate(-50%, -50%) rotate(-24deg) scale(0.96); opacity: 0.58; }
-  to { transform: translate(-50%, -50%) rotate(-16deg) scale(1.05); opacity: 1; }
-}
-
-@keyframes signal-two {
-  from { transform: translate(-50%, -50%) rotate(-17deg) scale(1.03); }
-  to { transform: translate(-50%, -50%) rotate(-29deg) scale(0.98); }
-}
-
-@keyframes signal-three {
-  from { transform: translate(-50%, -50%) rotate(-28deg) scale(0.98); }
-  to { transform: translate(-50%, -50%) rotate(-18deg) scale(1.04); }
-}
-
-@keyframes core-breathe {
-  50% { transform: scale(1.18); opacity: 0.72; }
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
 /* Horizontal history */
@@ -1932,10 +1874,6 @@ body.auth-starflight .aurora {
     right: -25%;
     width: 70vw;
     opacity: 0.34;
-  }
-
-  .hero-score .signal-word {
-    display: none;
   }
 
   .hero-lede,
