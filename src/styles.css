@@ -1497,7 +1497,6 @@ p {
   display: flex;
   flex-direction: column;
   gap: clamp(18px, 2.4vw, 30px);
-  max-width: 78ch;
 }
 
 .platform-head h2 {
