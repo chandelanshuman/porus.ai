@@ -26,5 +26,8 @@ describe("porus.ai bundle contract", () => {
     expect(js).toContain("data-auth-portal");
     expect(js).toContain("openPortal");
     expect(js).toContain("switchTab");
+    expect(js).toContain("porus:stars-converge");
+    expect(js).toContain("porus:stars-aperture");
+    expect(js).toContain("beginPortalSequence");
   });
 });

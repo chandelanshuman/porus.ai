@@ -301,6 +301,32 @@ p {
   opacity: 0.88;
 }
 
+body.auth-starflight .sky {
+  z-index: 210;
+  background: transparent;
+}
+
+body.auth-starflight .sky-wash,
+body.auth-starflight .aurora {
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+[data-auth-open].is-gathering-stars {
+  position: relative;
+  isolation: isolate;
+  color: var(--night);
+  background: #f7fffb;
+  box-shadow:
+    0 4px 20px rgba(4, 15, 25, 0.24),
+    0 0 34px rgba(117, 229, 200, 0.48);
+  transform: scale(0.98);
+  transition:
+    transform 180ms var(--ease-out),
+    background 180ms ease,
+    box-shadow 240ms ease;
+}
+
 @keyframes aurora-one {
   0% { transform: skewX(-6deg) translateX(-4%) scaleY(0.96); }
   50% { transform: skewX(3deg) translateX(2%) scaleY(1.14); }
@@ -2279,7 +2305,7 @@ p {
 }
 
 /* =========================================================
-   Aurora-fold auth portal + full-screen sign-in
+   Star-linked auth portal + full-screen sign-in
    ========================================================= */
 
 .auth-portal {
@@ -2293,6 +2319,8 @@ p {
   isolation: isolate;
   overflow: hidden;
   pointer-events: none;
+  clip-path: circle(0 at var(--lx) var(--ly));
+  will-change: clip-path;
 }
 
 .auth-portal[hidden] { display: none !important; }
@@ -2303,103 +2331,12 @@ p {
   pointer-events: auto;
 }
 
-/* A narrow aurora filament begins at the triggering button. */
-.auth-aurora-seed {
-  position: absolute;
-  z-index: 3;
-  left: var(--lx);
-  top: var(--ly);
-  width: 22vmax;
-  height: 4px;
-  border-radius: var(--r-pill);
-  transform: translate(-50%, -50%) rotate(-12deg) scaleX(0.02);
-  background: linear-gradient(90deg, transparent, var(--aqua) 28%, #d4fff2 50%, var(--cyan) 70%, transparent);
-  box-shadow:
-    0 0 18px 4px rgba(117, 229, 200, 0.5),
-    0 0 70px 16px rgba(112, 216, 237, 0.22);
-  opacity: 0;
-  will-change: transform, opacity;
-  pointer-events: none;
+.auth-portal.is-folding {
+  animation: auth-portal-reveal 860ms cubic-bezier(0.42, 0, 0.18, 1) forwards;
 }
 
-/* Midnight replaces the page beneath the moving folds. */
-.auth-aurora-curtain {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  background:
-    radial-gradient(circle at var(--lx) var(--ly),
-      rgba(20, 65, 65, 0.98) 0%,
-      rgba(7, 27, 37, 0.99) 32%,
-      #050f1a 76%);
-  opacity: 0;
-  will-change: opacity;
-  pointer-events: none;
-}
-
-/* A wide diagonal surface unfolds from the seed line. */
-.auth-aurora-folds {
-  position: absolute;
-  z-index: 2;
-  left: var(--lx);
-  top: var(--ly);
-  width: 180vmax;
-  height: 140vmax;
-  overflow: hidden;
-  background:
-    radial-gradient(ellipse at center, rgba(117, 229, 200, 0.2), transparent 58%),
-    linear-gradient(180deg, rgba(4, 15, 25, 0.98), rgba(8, 35, 43, 0.97) 44%, rgba(19, 17, 46, 0.99));
-  opacity: 0;
-  transform: translate(-50%, -50%) rotate(-12deg) scaleY(0.002);
-  transform-origin: center;
-  pointer-events: none;
-  will-change: transform, opacity, filter;
-}
-
-.auth-aurora-folds span {
-  position: absolute;
-  left: -5%;
-  width: 110%;
-  height: clamp(46px, 8vmax, 140px);
-  border-radius: 50%;
-  background: linear-gradient(90deg, transparent 8%, rgba(117, 229, 200, 0.18) 28%, rgba(112, 216, 237, 0.42) 50%, rgba(177, 140, 255, 0.28) 68%, transparent 92%);
-  filter: blur(16px);
-  mix-blend-mode: screen;
-}
-
-.auth-aurora-folds span:nth-child(1) { top: 13%; transform: skewX(-18deg); opacity: 0.48; }
-.auth-aurora-folds span:nth-child(2) { top: 30%; transform: skewX(14deg); opacity: 0.7; }
-.auth-aurora-folds span:nth-child(3) { top: 48%; transform: skewX(-9deg); opacity: 0.9; }
-.auth-aurora-folds span:nth-child(4) { top: 66%; transform: skewX(19deg); opacity: 0.62; }
-.auth-aurora-folds span:nth-child(5) { top: 82%; transform: skewX(-13deg); opacity: 0.4; }
-
-/* Sequenced animations */
-.auth-portal.is-folding .auth-aurora-seed {
-  animation: auth-aurora-seed-in 720ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.auth-portal.is-folding .auth-aurora-curtain {
-  animation: auth-aurora-curtain-in 900ms ease-out 180ms forwards;
-}
-
-.auth-portal.is-folding .auth-aurora-folds {
-  animation: auth-aurora-unfold 1080ms cubic-bezier(0.76, 0, 0.24, 1) forwards;
-}
-
-.auth-portal.is-open .auth-scene {
-  animation: auth-scene-in 820ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-.auth-portal.is-open .auth-aurora-curtain {
-  animation: auth-aurora-curtain-out 680ms ease-out forwards;
-}
-
-.auth-portal.is-open .auth-aurora-seed {
-  animation: auth-aurora-layers-out 540ms ease-out forwards;
-}
-
-.auth-portal.is-open .auth-aurora-folds {
-  animation: auth-aurora-layers-out 680ms ease-out forwards;
+.auth-portal.is-open:not(.is-folding) {
+  clip-path: circle(150vmax at var(--lx) var(--ly));
 }
 
 /* Exit animations */
@@ -2407,39 +2344,9 @@ p {
   animation: auth-scene-out 520ms cubic-bezier(0.5, 0, 0.7, 0.2) forwards;
 }
 
-@keyframes auth-aurora-seed-in {
-  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-12deg) scaleX(0.02); }
-  24% { opacity: 1; }
-  68% { opacity: 1; transform: translate(-50%, -50%) rotate(-12deg) scaleX(5.8); }
-  100% { opacity: 0.72; transform: translate(-50%, -50%) rotate(-12deg) scaleX(8) scaleY(3); }
-}
-
-@keyframes auth-aurora-unfold {
-  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-12deg) scaleY(0.002); filter: saturate(1.35); }
-  12% { opacity: 1; }
-  72% { opacity: 1; filter: saturate(1.2); }
-  100% { opacity: 1; transform: translate(-50%, -50%) rotate(-12deg) scaleY(1); filter: saturate(1); }
-}
-
-@keyframes auth-aurora-curtain-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes auth-aurora-curtain-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-@keyframes auth-aurora-layers-out {
-  from { opacity: 1; }
-  to { opacity: 0; filter: blur(18px); }
-}
-
-@keyframes auth-scene-in {
-  0%   { opacity: 0; transform: scale(1.03); filter: blur(6px); }
-  35%  { opacity: 0.65; }
-  100% { opacity: 1; transform: scale(1); filter: blur(0); }
+@keyframes auth-portal-reveal {
+  from { clip-path: circle(0 at var(--lx) var(--ly)); }
+  to { clip-path: circle(150vmax at var(--lx) var(--ly)); }
 }
 
 @keyframes auth-scene-out {
@@ -2456,10 +2363,9 @@ p {
   display: grid;
   grid-template-columns: 40fr 60fr;
   background: var(--night-deep);
-  opacity: 0;
-  transform: scale(1.03);
+  opacity: 1;
+  transform: none;
   overflow: hidden;
-  will-change: opacity, transform;
 }
 
 .auth-close {
@@ -2603,7 +2509,7 @@ p {
   align-items: center;
   text-align: center;
   max-width: 460px;
-  animation: auth-welcome-rise 1200ms cubic-bezier(0.22, 1, 0.36, 1) 420ms both;
+  animation: auth-welcome-rise 680ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
 }
 
 .auth-portal:not(.is-open) .auth-welcome-copy { animation: none; opacity: 0; }
@@ -2715,7 +2621,7 @@ p {
     radial-gradient(120% 90%  at 0%  100%, rgba(176,140,255,0.05) 0%, rgba(176,140,255,0) 55%),
     linear-gradient(180deg, #030811 0%, #01050c 60%, #000206 100%);
   border-left: 1px solid rgba(231, 248, 243, 0.06);
-  animation: auth-forms-rise 1000ms cubic-bezier(0.22, 1, 0.36, 1) 520ms both;
+  animation: auth-forms-rise 620ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both;
 }
 
 .auth-forms > * { width: 100%; max-width: 360px; position: relative; z-index: 1; }
@@ -3059,18 +2965,20 @@ p {
 /* -------- Reduced motion -------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-portal.is-folding .auth-aurora-curtain,
-  .auth-portal.is-open .auth-scene,
-  .auth-portal.is-open .auth-aurora-curtain,
+  body.auth-starflight .sky {
+    z-index: -2;
+  }
+
+  [data-auth-open].is-gathering-stars {
+    box-shadow: 0 4px 18px rgba(4, 15, 25, 0.22);
+    transform: none;
+  }
+
+  .auth-portal.is-folding,
   .auth-portal.is-closing .auth-scene,
   .auth-welcome-copy,
   .auth-forms {
     animation-duration: 220ms !important;
-  }
-
-  .auth-aurora-seed,
-  .auth-aurora-folds {
-    display: none;
   }
 
   .auth-portal.is-open .auth-world,

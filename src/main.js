@@ -292,8 +292,15 @@
     exitPeak: 4,
     exitEnd: 5,
     lastPaint: 0,
-    staticDrawn: false
+    staticDrawn: false,
+    pointerX: 0,
+    pointerY: 0,
+    pointerTargetX: 0,
+    pointerTargetY: 0,
+    convergence: null
   };
+
+  const STAR_CONVERGENCE_DURATION = 920;
 
   function buildStars() {
     if (!starCanvas) return;
@@ -309,11 +316,94 @@
         alpha: 0.18 + random() * 0.48,
         phase: random() * Math.PI * 2,
         speed: 0.24 + random() * 0.9,
+        depth: 0.28 + random() * 0.72,
         color: tint < 0.75 ? [255, 255, 255] : tint < 0.91 ? [190, 255, 224] : [168, 224, 255]
       };
     });
     starState.lastPaint = 0;
     starState.staticDrawn = false;
+  }
+
+  function starPointerOffset(star) {
+    if (reduceMotion) return { x: 0, y: 0 };
+    const depth = star.depth || 0.5;
+    return {
+      x: starState.pointerX * mix(2, 8, depth),
+      y: starState.pointerY * mix(1.5, 6, depth)
+    };
+  }
+
+  function finishStarConvergence() {
+    const convergence = starState.convergence;
+    if (!convergence) return;
+    starState.convergence = null;
+    document.body.classList.remove("auth-starflight");
+    window.dispatchEvent(new CustomEvent("porus:stars-converged", {
+      detail: { id: convergence.id }
+    }));
+  }
+
+  function beginStarConvergence(event) {
+    const detail = event.detail || {};
+    const targetX = Number(detail.x);
+    const targetY = Number(detail.y);
+    if (!Number.isFinite(targetX) || !Number.isFinite(targetY)) return;
+
+    if (reduceMotion || !starCanvas || !starState.stars.length) {
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("porus:stars-aperture", {
+          detail: { id: detail.id }
+        }));
+      }, 70);
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("porus:stars-converged", {
+          detail: { id: detail.id }
+        }));
+      }, 150);
+      return;
+    }
+
+    const now = performance.now();
+    starState.convergence = {
+      id: detail.id,
+      targetX: clamp(targetX, 0, starState.width),
+      targetY: clamp(targetY, 0, starState.height),
+      startedAt: now,
+      duration: STAR_CONVERGENCE_DURATION,
+      apertureOpened: false
+    };
+
+    starState.stars.forEach((star, index) => {
+      const offset = starPointerOffset(star);
+      const angle = index * 2.399963;
+      const arrivalRadius = 4 + ((index * 13) % 15);
+      star.flightX = star.x * starState.width + offset.x;
+      star.flightY = star.y * starState.height + offset.y;
+      star.flightTargetX = clamp(targetX + Math.cos(angle) * arrivalRadius, 0, starState.width);
+      star.flightTargetY = clamp(targetY + Math.sin(angle) * arrivalRadius * 0.65, 0, starState.height);
+      star.flightDelay = (index % 9) * 8 + (star.depth || 0.5) * 28;
+    });
+
+    document.body.classList.add("auth-starflight");
+    starState.lastPaint = now;
+    requestFrame();
+  }
+
+  window.addEventListener("porus:stars-converge", beginStarConvergence);
+
+  if (finePointerQuery.matches) {
+    window.addEventListener("pointermove", (event) => {
+      if (reduceMotion || starState.convergence) return;
+      starState.pointerTargetX = clamp((event.clientX / window.innerWidth - 0.5) * 2, -1, 1);
+      starState.pointerTargetY = clamp((event.clientY / window.innerHeight - 0.5) * 2, -1, 1);
+      requestFrame();
+    }, { passive: true });
+
+    document.documentElement.addEventListener("pointerleave", () => {
+      starState.pointerTargetX = 0;
+      starState.pointerTargetY = 0;
+      requestFrame();
+    }, { passive: true });
   }
 
   function measureWarp() {
@@ -408,9 +498,80 @@
     const farthest = Math.hypot(centreX, centreY);
     context.clearRect(0, 0, width, height);
 
+    if (starState.convergence) {
+      const flight = starState.convergence;
+      const elapsed = now - flight.startedAt;
+
+      if (!flight.apertureOpened && elapsed >= flight.duration * 0.54) {
+        flight.apertureOpened = true;
+        window.dispatchEvent(new CustomEvent("porus:stars-aperture", {
+          detail: { id: flight.id }
+        }));
+      }
+
+      context.save();
+      context.globalCompositeOperation = "lighter";
+
+      stars.forEach((star) => {
+        const available = Math.max(1, flight.duration - star.flightDelay);
+        const progress = clamp((elapsed - star.flightDelay) / available);
+        const eased = progress * progress * progress;
+        const trailStep = mix(0.05, 0.016, smoothstep((progress - 0.52) / 0.48));
+        const previousProgress = clamp(progress - trailStep);
+        const previousEased = previousProgress * previousProgress * previousProgress;
+        const x = mix(star.flightX, star.flightTargetX, eased);
+        const y = mix(star.flightY, star.flightTargetY, eased);
+        const tailX = mix(star.flightX, star.flightTargetX, previousEased);
+        const tailY = mix(star.flightY, star.flightTargetY, previousEased);
+        const arrival = smoothstep((progress - 0.74) / 0.26);
+        const alpha = star.alpha * mix(0.82, 1.5, progress) * (1 - arrival * 0.9);
+        const trail = Math.hypot(x - tailX, y - tailY);
+
+        if (trail > 1.2) {
+          const gradient = context.createLinearGradient(tailX, tailY, x, y);
+          gradient.addColorStop(0, rgb(star.color, 0));
+          gradient.addColorStop(1, rgb(star.color, Math.min(0.98, alpha)));
+          context.strokeStyle = gradient;
+          context.lineWidth = star.radius * mix(0.9, 1.8, progress);
+          context.lineCap = "round";
+          context.beginPath();
+          context.moveTo(tailX, tailY);
+          context.lineTo(x, y);
+          context.stroke();
+        }
+
+        if (progress < 0.985) {
+          context.fillStyle = rgb(star.color, Math.min(1, alpha));
+          context.beginPath();
+          context.arc(x, y, star.radius * mix(1, 1.6, progress), 0, Math.PI * 2);
+          context.fill();
+        }
+      });
+
+      const gather = smoothstep(elapsed / flight.duration);
+      const glowFade = 1 - smoothstep((gather - 0.72) / 0.28);
+      const glowRadius = mix(4, 42, gather);
+      const glow = context.createRadialGradient(
+        flight.targetX, flight.targetY, 0,
+        flight.targetX, flight.targetY, glowRadius
+      );
+      glow.addColorStop(0, `rgba(212,255,242,${0.72 * gather * glowFade})`);
+      glow.addColorStop(0.28, `rgba(117,229,200,${0.34 * gather * glowFade})`);
+      glow.addColorStop(1, "rgba(112,216,237,0)");
+      context.fillStyle = glow;
+      context.beginPath();
+      context.arc(flight.targetX, flight.targetY, glowRadius, 0, Math.PI * 2);
+      context.fill();
+      context.restore();
+
+      if (elapsed >= flight.duration) finishStarConvergence();
+      return;
+    }
+
     stars.forEach((star, index) => {
-      let x = star.x * width;
-      let y = star.y * height;
+      const pointerOffset = starPointerOffset(star);
+      let x = star.x * width + pointerOffset.x;
+      let y = star.y * height + pointerOffset.y;
       let dx = x - centreX;
       let dy = y - centreY;
       let distance = Math.hypot(dx, dy) || 1;
@@ -432,8 +593,8 @@
           star.y = 0.5 + Math.sin(angle) * 0.57;
         }
 
-        x = star.x * width;
-        y = star.y * height;
+        x = star.x * width + pointerOffset.x;
+        y = star.y * height + pointerOffset.y;
         dx = x - centreX;
         dy = y - centreY;
         distance = Math.hypot(dx, dy) || 1;
@@ -1039,6 +1200,11 @@
     updateCinemaProgress();
     updatePlayers();
 
+    if (!reduceMotion && !starState.convergence) {
+      starState.pointerX += (starState.pointerTargetX - starState.pointerX) * 0.045;
+      starState.pointerY += (starState.pointerTargetY - starState.pointerY) * 0.045;
+    }
+
     if (now - lastStarFrame >= 30 || reduceMotion) {
       paintStars(now, window.scrollY);
       lastStarFrame = now;
@@ -1084,6 +1250,10 @@
       suitePointerState.row = null;
       suitePointerState.currentX = 0.5;
       suitePointerState.currentY = 0.5;
+      starState.pointerX = 0;
+      starState.pointerY = 0;
+      starState.pointerTargetX = 0;
+      starState.pointerTargetY = 0;
     }
     starState.staticDrawn = false;
     layoutDirty = true;
@@ -1130,7 +1300,7 @@
 })();
 
 /* =========================================================
-   Aurora-fold auth portal + full-screen sign-in
+   Star-linked auth portal + full-screen sign-in
    ========================================================= */
 (() => {
   "use strict";
@@ -1165,6 +1335,8 @@
   let lastOpener = null;
   let currentMode = "signin";
   let sceneListener = null;
+  let opening = false;
+  let openingId = 0;
 
   function setAuroraOrigin(el) {
     let x = window.innerWidth / 2;
@@ -1219,26 +1391,61 @@
     portal.classList.remove("is-closing", "is-open");
     portal.classList.add("is-priming");
 
-    // Let the portal paint once before the aurora begins unfolding.
+    // Let the clipped scene paint once before the aperture expands.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         portal.classList.remove("is-priming");
-        portal.classList.add("is-folding");
+        portal.classList.add("is-folding", "is-open");
+        requestAnimationFrame(positionUnderline);
       });
     });
 
-    const foldHold = reduceMotion ? 180 : 1050;
     window.setTimeout(() => {
-      portal.classList.add("is-open");
-      requestAnimationFrame(positionUnderline);
-      // Focus first field once scene is in
-      window.setTimeout(() => {
-        const focusable = portal.querySelector(
-          `.auth-form[data-auth-form="${currentMode}"] input, .auth-form:not([hidden]) input`
-        );
-        if (focusable) focusable.focus({ preventScroll: true });
-      }, reduceMotion ? 60 : 460);
-    }, foldHold);
+      portal.classList.remove("is-folding");
+      const focusable = portal.querySelector(
+        `.auth-form[data-auth-form="${currentMode}"] input, .auth-form:not([hidden]) input`
+      );
+      if (focusable) focusable.focus({ preventScroll: true });
+    }, reduceMotion ? 220 : 900);
+  }
+
+  function beginPortalSequence(fromEl) {
+    if (opening || (!portal.hasAttribute("hidden") && portal.classList.contains("is-open"))) return;
+    opening = true;
+    lastOpener = fromEl || null;
+    openingId += 1;
+    const id = openingId;
+    const rect = fromEl?.getBoundingClientRect();
+    const x = rect?.width ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    const y = rect?.height ? rect.top + rect.height / 2 : window.innerHeight / 2;
+    fromEl?.classList.add("is-gathering-stars");
+
+    let completed = false;
+    let portalStarted = false;
+    let fallback = 0;
+    const matchesIntent = (event) => !event || event.detail?.id === id;
+    const startPortal = (event) => {
+      if (portalStarted || !matchesIntent(event)) return;
+      portalStarted = true;
+      openPortal(fromEl);
+    };
+    const finish = (event) => {
+      if (completed || !matchesIntent(event)) return;
+      completed = true;
+      startPortal();
+      window.removeEventListener("porus:stars-aperture", startPortal);
+      window.removeEventListener("porus:stars-converged", finish);
+      window.clearTimeout(fallback);
+      fromEl?.classList.remove("is-gathering-stars");
+      opening = false;
+    };
+
+    window.addEventListener("porus:stars-aperture", startPortal);
+    window.addEventListener("porus:stars-converged", finish);
+    fallback = window.setTimeout(() => finish(), reduceMotion ? 240 : 1180);
+    window.dispatchEvent(new CustomEvent("porus:stars-converge", {
+      detail: { id, x, y }
+    }));
   }
 
   function closePortal() {
@@ -1276,7 +1483,7 @@
   openers.forEach((btn) => {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
-      openPortal(btn);
+      beginPortalSequence(btn);
     });
   });
 
