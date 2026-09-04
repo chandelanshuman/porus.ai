@@ -142,7 +142,7 @@ Buttons use a modest `10px` radius, not a pill. The primary action is light pape
 
 ### Product suite
 
-Products are full-width rows, not equal card tiles. Status sits opposite the product name. Only Studio receives a lifted atmospheric surface because it is the current proof.
+Products are full-width rows, not equal card tiles. Status sits opposite the product name. Studio receives a lifted atmospheric surface because it is the most concrete expression of the platform today.
 
 On fine pointers, a restrained local light field follows the pointer within the active row while the product copy and status move a few pixels in opposing depth. The row never changes size, Studio never loses its permanent gradient, and informational rows keep the native cursor because they are not links. Touch and reduced-motion layouts remain static.
 
