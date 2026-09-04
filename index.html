@@ -258,7 +258,8 @@
       </div>
     </section>
 
-    <section class="closing-field" aria-labelledby="closing-title">
+    <section class="closing-field" data-closing-field aria-labelledby="closing-title">
+      <canvas class="closing-stars" data-closing-stars aria-hidden="true"></canvas>
       <div class="shell closing-layout">
         <h2 id="closing-title">Help expression travel farther.</h2>
         <div>
@@ -271,13 +272,29 @@
 
   <footer class="site-footer">
     <div class="shell footer-main">
-      <div>
+      <div class="footer-intro">
         <a class="brand" href="#top" aria-label="Porus.ai home"><img src="/logo.svg" width="280" height="64" alt="Porus.ai"></a>
-        <p>Building the expression layer for a multilingual world.</p>
+        <p class="footer-statement">Building the expression layer for a multilingual world.</p>
       </div>
-      <nav aria-label="Footer navigation"><a href="#mission">Mission</a><a href="#studio">Studio</a><a href="#platform">Platform</a><a href="#trust">Trust</a><a href="mailto:hello@porus.ai">hello@porus.ai</a></nav>
+      <div class="footer-directory">
+        <nav aria-label="Footer navigation">
+          <a href="#mission">Mission</a>
+          <a href="#studio">Studio</a>
+          <a href="#platform">Platform</a>
+          <a href="#trust">Trust</a>
+        </nav>
+        <a class="footer-contact" href="mailto:hello@porus.ai">
+          <span>Write to us</span>
+          <strong>hello@porus.ai</strong>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
     </div>
-    <div class="shell footer-bottom"><span>© <span id="year">2026</span> Porus.ai</span><span>Technical alpha. Selected tests only.</span></div>
+    <div class="shell footer-bottom">
+      <span>© <span id="year">2026</span> Porus.ai</span>
+      <span>Technical alpha. Selected tests only.</span>
+      <a href="#top">Back to top <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 15V5M6.5 8.5 10 5l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+    </div>
   </footer>
 
   <!-- Star-linked auth portal -->

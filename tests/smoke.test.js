@@ -11,6 +11,7 @@ describe("porus.ai bundle contract", () => {
     const html = readFileSync(resolve(root, "index.html"), "utf8");
     expect(html).toContain("data-auth-portal");
     expect(html).toContain("data-expression-canvas");
+    expect(html).toContain("data-closing-stars");
     const opens = html.match(/data-auth-open/g) ?? [];
     expect(opens.length).toBe(3);
   });
@@ -33,5 +34,7 @@ describe("porus.ai bundle contract", () => {
     expect(js).toContain("paintExpressionField");
     expect(js).toContain("beginExpressionFlight");
     expect(js).toContain("paintExpressionFlight");
+    expect(js).toContain("paintClosingStars");
+    expect(js).toContain("paintClosingFlight");
   });
 });

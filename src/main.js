@@ -9,7 +9,12 @@
   let rafId = 0;
   let lastStarFrame = 0;
   let lastExpressionFrame = 0;
+  let lastClosingFrame = 0;
   let layoutDirty = true;
+  let scrollDirty = true;
+  let cachedScrollY = window.scrollY;
+  let lastScrollAt = Number.NEGATIVE_INFINITY;
+  let lastJourney = Number.NaN;
 
   root.classList.add("js");
   if (!reduceMotion) root.classList.add("motion-enabled");
@@ -294,6 +299,7 @@
     cursorTargetX: 0,
     cursorTargetY: 0,
     pointerActive: false,
+    lastPointerAt: Number.NEGATIVE_INFINITY,
     motes: [],
     flight: null,
     staticDrawn: false
@@ -403,13 +409,23 @@
   }
 
   function updateExpressionPointer() {
-    if (!expressionField || reduceMotion) return;
+    if (!expressionField || reduceMotion) return false;
+    const pathDeltaX = expressionState.targetX - expressionState.pointerX;
+    const pathDeltaY = expressionState.targetY - expressionState.pointerY;
+    const cursorDeltaX = expressionState.cursorTargetX - expressionState.cursorX;
+    const cursorDeltaY = expressionState.cursorTargetY - expressionState.cursorY;
+    const moving = Math.abs(pathDeltaX) > 0.0004
+      || Math.abs(pathDeltaY) > 0.0004
+      || Math.abs(cursorDeltaX) > 0.08
+      || Math.abs(cursorDeltaY) > 0.08;
+    if (!moving) return false;
     expressionState.pointerX += (expressionState.targetX - expressionState.pointerX) * 0.055;
     expressionState.pointerY += (expressionState.targetY - expressionState.pointerY) * 0.055;
     expressionState.cursorX += (expressionState.cursorTargetX - expressionState.cursorX) * 0.14;
     expressionState.cursorY += (expressionState.cursorTargetY - expressionState.cursorY) * 0.14;
     expressionField.style.setProperty("--field-shift-x", `${(expressionState.pointerX * 7).toFixed(2)}px`);
     expressionField.style.setProperty("--field-shift-y", `${(expressionState.pointerY * 5).toFixed(2)}px`);
+    return true;
   }
 
   function paintExpressionField(now) {
@@ -479,6 +495,7 @@
       expressionState.cursorTargetX = event.clientX - rect.left;
       expressionState.cursorTargetY = event.clientY - rect.top;
       expressionState.pointerActive = true;
+      expressionState.lastPointerAt = performance.now();
       requestFrame();
     }, { passive: true });
 
@@ -494,7 +511,7 @@
     const detail = event.detail || {};
     const targetX = Number(detail.x);
     const targetY = Number(detail.y);
-    if (reduceMotion || !expressionCanvas || !expressionState.motes.length
+    if (reduceMotion || !expressionState.visible || !expressionCanvas || !expressionState.motes.length
       || !Number.isFinite(targetX) || !Number.isFinite(targetY)) return;
 
     const now = performance.now();
@@ -588,6 +605,243 @@
     context.restore();
 
     if (elapsed >= flight.duration) expressionState.flight = null;
+  }
+
+  /* Closing constellation */
+
+  const closingField = document.querySelector("[data-closing-field]");
+  const closingCanvas = closingField?.querySelector("[data-closing-stars]");
+  const closingState = {
+    context: null,
+    width: 0,
+    height: 0,
+    dpr: 1,
+    stars: [],
+    visible: false,
+    entered: false,
+    enteredAt: 0,
+    pointerActive: false,
+    pointerX: 0,
+    pointerY: 0,
+    pointerTargetX: 0,
+    pointerTargetY: 0,
+    lastPointerAt: Number.NEGATIVE_INFINITY,
+    flight: null,
+    staticDrawn: false
+  };
+
+  function buildClosingStars() {
+    if (!closingCanvas) return;
+    const changed = sizeCanvas(closingCanvas, closingState);
+    if (!changed && closingState.stars.length) return;
+    const random = seeded(19082026);
+    const count = Math.max(52, Math.min(118, Math.round(closingState.width * closingState.height / 11800)));
+    closingState.stars = Array.from({ length: count }, (_, index) => {
+      const baseX = 0.035 + random() * 0.93;
+      const baseY = 0.1 + random() * 0.8;
+      const fromLeft = baseX < 0.5;
+      const tint = random();
+      return {
+        baseX,
+        baseY,
+        startX: fromLeft ? -0.07 - random() * 0.08 : 1.07 + random() * 0.08,
+        startY: clamp(baseY + (random() - 0.5) * 0.34, -0.08, 1.08),
+        entryDelay: random() * 430,
+        entryDuration: 720 + random() * 420,
+        radius: 0.5 + random() * 1.15,
+        alpha: 0.22 + random() * 0.48,
+        phase: random() * Math.PI * 2,
+        speed: 0.22 + random() * 0.42,
+        depth: 0.25 + random() * 0.75,
+        color: tint < 0.74 ? [224, 248, 241] : tint < 0.9 ? [168, 235, 218] : [202, 181, 246],
+        bright: index % 19 === 0,
+        cursorOffsetX: 0,
+        cursorOffsetY: 0,
+        cursorReach: 0.11 + random() * 0.11,
+        cursorResponse: 0.04 + random() * 0.07,
+        cursorPolarity: random() < 0.78 ? 1 : -0.38,
+        cursorCurl: random() * 2 - 1,
+        lastX: baseX * closingState.width,
+        lastY: baseY * closingState.height
+      };
+    });
+    closingState.pointerX = closingState.width * 0.5;
+    closingState.pointerY = closingState.height * 0.5;
+    closingState.pointerTargetX = closingState.pointerX;
+    closingState.pointerTargetY = closingState.pointerY;
+    closingState.staticDrawn = false;
+  }
+
+  function updateClosingPointer() {
+    if (!closingCanvas || reduceMotion) return false;
+    const deltaX = closingState.pointerTargetX - closingState.pointerX;
+    const deltaY = closingState.pointerTargetY - closingState.pointerY;
+    const moving = Math.abs(deltaX) > 0.08 || Math.abs(deltaY) > 0.08;
+    if (!moving) return false;
+    closingState.pointerX += deltaX * 0.13;
+    closingState.pointerY += deltaY * 0.13;
+    return true;
+  }
+
+  function closingStarPoint(star, now) {
+    const elapsed = closingState.enteredAt ? now - closingState.enteredAt : 1200;
+    const arrival = reduceMotion ? 1 : smoothstep((elapsed - star.entryDelay) / star.entryDuration);
+    const seconds = now / 1000;
+    const point = {
+      x: mix(star.startX, star.baseX, arrival) * closingState.width,
+      y: mix(star.startY, star.baseY, arrival) * closingState.height
+    };
+    point.x += Math.sin(seconds * star.speed + star.phase) * 2.8 * star.depth * arrival;
+    point.y += Math.cos(seconds * star.speed * 0.74 + star.phase) * 2.1 * star.depth * arrival;
+
+    const deltaX = point.x - closingState.pointerX;
+    const deltaY = point.y - closingState.pointerY;
+    const distance = Math.hypot(deltaX, deltaY) || 1;
+    const reach = closingState.width * star.cursorReach;
+    const influence = closingState.pointerActive ? Math.exp(-Math.pow(distance / reach, 2)) : 0;
+    const radial = influence * 22 * star.depth * star.cursorPolarity;
+    const curl = influence * 12 * star.depth * star.cursorCurl;
+    const offsetX = deltaX / distance * radial - deltaY / distance * curl;
+    const offsetY = deltaY / distance * radial + deltaX / distance * curl;
+    star.cursorOffsetX += (offsetX - star.cursorOffsetX) * star.cursorResponse;
+    star.cursorOffsetY += (offsetY - star.cursorOffsetY) * star.cursorResponse;
+    point.x += star.cursorOffsetX;
+    point.y += star.cursorOffsetY;
+    star.lastX = point.x;
+    star.lastY = point.y;
+    return { ...point, arrival };
+  }
+
+  function paintClosingStars(now) {
+    const { context, width, height, stars } = closingState;
+    if (!context || !width || !height || !closingState.visible || !stars.length) return;
+    if (reduceMotion && closingState.staticDrawn) return;
+    context.clearRect(0, 0, width, height);
+    if (closingState.flight) return;
+    context.save();
+    context.globalCompositeOperation = "lighter";
+    stars.forEach((star) => {
+      const point = closingStarPoint(star, now);
+      const twinkle = reduceMotion ? 0.82 : 0.72 + Math.sin(now / 1000 * star.speed + star.phase) * 0.28;
+      const alpha = star.alpha * twinkle * point.arrival;
+      if (star.bright && point.arrival > 0.45) {
+        const radius = 9 + star.depth * 8;
+        const glow = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
+        glow.addColorStop(0, rgb(star.color, alpha * 0.28));
+        glow.addColorStop(1, rgb(star.color, 0));
+        context.fillStyle = glow;
+        context.beginPath();
+        context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+        context.fill();
+      }
+      context.fillStyle = rgb(star.color, alpha);
+      context.beginPath();
+      context.arc(point.x, point.y, star.radius, 0, Math.PI * 2);
+      context.fill();
+    });
+    context.restore();
+    if (reduceMotion) closingState.staticDrawn = true;
+  }
+
+  if (finePointerQuery.matches && closingCanvas) {
+    closingField.addEventListener("pointerenter", (event) => {
+      const rect = closingCanvas.getBoundingClientRect();
+      closingState.pointerActive = true;
+      closingState.pointerTargetX = event.clientX - rect.left;
+      closingState.pointerTargetY = event.clientY - rect.top;
+      closingState.lastPointerAt = performance.now();
+      requestFrame();
+    }, { passive: true });
+    closingField.addEventListener("pointermove", (event) => {
+      const rect = closingCanvas.getBoundingClientRect();
+      closingState.pointerTargetX = event.clientX - rect.left;
+      closingState.pointerTargetY = event.clientY - rect.top;
+      closingState.lastPointerAt = performance.now();
+      requestFrame();
+    }, { passive: true });
+    closingField.addEventListener("pointerleave", () => {
+      closingState.pointerActive = false;
+      requestFrame();
+    }, { passive: true });
+  }
+
+  function beginClosingFlight(event) {
+    const detail = event.detail || {};
+    const targetX = Number(detail.x);
+    const targetY = Number(detail.y);
+    if (reduceMotion || !closingState.visible || !closingCanvas || !closingState.stars.length
+      || !Number.isFinite(targetX) || !Number.isFinite(targetY)) return;
+    const now = performance.now();
+    const rect = closingCanvas.getBoundingClientRect();
+    const particles = closingState.stars.map((star, index) => {
+      const startX = rect.left + star.lastX;
+      const startY = rect.top + star.lastY;
+      const angle = index * 2.399963;
+      const arrivalRadius = 3 + (index * 7) % 16;
+      const distance = Math.hypot(targetX - startX, targetY - startY) || 1;
+      const arc = (14 + index % 8 * 5) * (index % 2 ? 1 : -1);
+      return {
+        ...star,
+        startX,
+        startY,
+        targetX: targetX + Math.cos(angle) * arrivalRadius,
+        targetY: targetY + Math.sin(angle) * arrivalRadius * 0.62,
+        controlX: (startX + targetX) * 0.5 - (targetY - startY) / distance * arc,
+        controlY: (startY + targetY) * 0.5 + (targetX - startX) / distance * arc,
+        flightDelay: index % 11 * 7 + (1 - star.depth) * 26
+      };
+    });
+    closingState.flight = { id: detail.id, startedAt: now, duration: 920, particles };
+    closingState.pointerActive = false;
+    requestFrame();
+  }
+
+  window.addEventListener("porus:stars-converge", beginClosingFlight);
+
+  function paintClosingFlight(context, now) {
+    const flight = closingState.flight;
+    if (!flight) return;
+    const elapsed = now - flight.startedAt;
+    context.save();
+    context.globalCompositeOperation = "lighter";
+    flight.particles.forEach((particle) => {
+      const available = Math.max(1, flight.duration - particle.flightDelay);
+      const progress = clamp((elapsed - particle.flightDelay) / available);
+      const eased = progress * progress * progress;
+      const previous = clamp(progress - mix(0.05, 0.016, progress));
+      const previousEased = previous * previous * previous;
+      const pointAt = (amount) => {
+        const inverse = 1 - amount;
+        return {
+          x: inverse * inverse * particle.startX + 2 * inverse * amount * particle.controlX + amount * amount * particle.targetX,
+          y: inverse * inverse * particle.startY + 2 * inverse * amount * particle.controlY + amount * amount * particle.targetY
+        };
+      };
+      const point = pointAt(eased);
+      const tail = pointAt(previousEased);
+      const arrival = smoothstep((progress - 0.76) / 0.24);
+      const alpha = particle.alpha * mix(0.8, 1.55, progress) * (1 - arrival * 0.94);
+      if (Math.hypot(point.x - tail.x, point.y - tail.y) > 0.8) {
+        const gradient = context.createLinearGradient(tail.x, tail.y, point.x, point.y);
+        gradient.addColorStop(0, rgb(particle.color, 0));
+        gradient.addColorStop(1, rgb(particle.color, Math.min(0.96, alpha)));
+        context.strokeStyle = gradient;
+        context.lineWidth = particle.radius * mix(0.8, 1.35, progress);
+        context.lineCap = "round";
+        context.beginPath();
+        context.moveTo(tail.x, tail.y);
+        context.lineTo(point.x, point.y);
+        context.stroke();
+      }
+      if (progress < 0.99) {
+        context.fillStyle = rgb(particle.color, Math.min(1, alpha));
+        context.beginPath();
+        context.arc(point.x, point.y, particle.radius, 0, Math.PI * 2);
+        context.fill();
+      }
+    });
+    context.restore();
+    if (elapsed >= flight.duration) closingState.flight = null;
   }
 
   /* Starfield and continuous history-to-language warp */
@@ -865,6 +1119,7 @@
       });
 
       paintExpressionFlight(context, now);
+      paintClosingFlight(context, now);
 
       const gather = smoothstep(elapsed / flight.duration);
       const glowFade = 1 - smoothstep((gather - 0.72) / 0.28);
@@ -1492,18 +1747,22 @@
     buildStars();
     measureWarp();
     if (expressionCanvas) buildExpressionMotes();
+    if (closingCanvas) buildClosingStars();
     sizeCinemaCanvases();
     audioPlayers.forEach(sizePlayerCanvas);
     updateHistory();
     updatePlayers();
   }
 
-  function updateJourney() {
+  function updateJourney(scrollY) {
     const maximum = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    const pageProgress = clamp(window.scrollY / maximum);
+    const pageProgress = clamp(scrollY / maximum);
     const bell = Math.sin(pageProgress * Math.PI);
     const journey = smoothstep(bell);
-    root.style.setProperty("--journey", journey.toFixed(3));
+    if (!Number.isFinite(lastJourney) || Math.abs(journey - lastJourney) > 0.0005) {
+      root.style.setProperty("--journey", journey.toFixed(3));
+      lastJourney = journey;
+    }
   }
 
   function tick(now) {
@@ -1511,28 +1770,52 @@
     if (!pageVisible) return;
     if (layoutDirty) measureAll();
 
-    updateJourney();
-    updateHistory();
+    const scrolling = scrollDirty || now - lastScrollAt < 150;
+    if (scrollDirty) {
+      cachedScrollY = window.scrollY;
+      updateJourney(cachedScrollY);
+      updateHistory();
+      updateCinemaScroll(now);
+      scrollDirty = false;
+    }
+
     updateSuitePointer();
-    updateExpressionPointer();
-    updateCinemaScroll(now);
+    const expressionPointerMoving = updateExpressionPointer();
+    const closingPointerMoving = updateClosingPointer();
     updateCrossfade(now);
     updateCinemaProgress();
     updatePlayers();
 
+    let starPointerMoving = false;
     if (!reduceMotion && !starState.convergence) {
+      starPointerMoving = Math.abs(starState.pointerTargetX - starState.pointerX) > 0.0004
+        || Math.abs(starState.pointerTargetY - starState.pointerY) > 0.0004;
       starState.pointerX += (starState.pointerTargetX - starState.pointerX) * 0.045;
       starState.pointerY += (starState.pointerTargetY - starState.pointerY) * 0.045;
     }
 
-    if (now - lastStarFrame >= 30 || reduceMotion) {
-      paintStars(now, window.scrollY);
+    const starFrameInterval = scrolling || starState.convergence || starPointerMoving ? 15 : 30;
+    if (now - lastStarFrame >= starFrameInterval || reduceMotion) {
+      paintStars(now, cachedScrollY);
       lastStarFrame = now;
     }
 
-    if (expressionState.visible && (now - lastExpressionFrame >= 33 || reduceMotion)) {
+    const expressionHighRate = expressionPointerMoving
+      || now - expressionState.lastPointerAt < 520;
+    const expressionFrameInterval = expressionHighRate ? 15 : 30;
+    if (expressionState.visible && (now - lastExpressionFrame >= expressionFrameInterval || reduceMotion)) {
       paintExpressionField(now);
       lastExpressionFrame = now;
+    }
+
+    const closingHighRate = scrolling
+      || closingPointerMoving
+      || now - closingState.lastPointerAt < 520
+      || (closingState.visible && now - closingState.enteredAt < 1650);
+    const closingFrameInterval = closingHighRate ? 15 : 30;
+    if (closingState.visible && (now - lastClosingFrame >= closingFrameInterval || reduceMotion)) {
+      paintClosingStars(now);
+      lastClosingFrame = now;
     }
 
     if (cinemaState.visible) {
@@ -1550,14 +1833,23 @@
 
   function markLayoutDirty() {
     layoutDirty = true;
+    scrollDirty = true;
     requestFrame();
   }
+
+  window.addEventListener("scroll", () => {
+    cachedScrollY = window.scrollY;
+    scrollDirty = true;
+    lastScrollAt = performance.now();
+    requestFrame();
+  }, { passive: true });
 
   if ("ResizeObserver" in window) {
     const resizeObserver = new ResizeObserver(markLayoutDirty);
     resizeObserver.observe(document.documentElement);
     if (historyTrack) resizeObserver.observe(historyTrack);
     if (expressionCanvas) resizeObserver.observe(expressionCanvas);
+    if (closingCanvas) resizeObserver.observe(closingCanvas);
     if (cinemaCanvas) resizeObserver.observe(cinemaCanvas);
     audioPlayers.forEach((player) => {
       if (player.canvas) resizeObserver.observe(player.canvas);
@@ -1590,9 +1882,16 @@
         mote.cursorOffsetX = 0;
         mote.cursorOffsetY = 0;
       });
+      closingState.pointerActive = false;
+      closingState.flight = null;
+      closingState.stars.forEach((star) => {
+        star.cursorOffsetX = 0;
+        star.cursorOffsetY = 0;
+      });
     }
     starState.staticDrawn = false;
     expressionState.staticDrawn = false;
+    closingState.staticDrawn = false;
     layoutDirty = true;
     requestFrame();
   }
@@ -1622,7 +1921,8 @@
 
   if ("IntersectionObserver" in window && cinemaSection) {
     const cinemaVisibilityObserver = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) requestFrame();
+      cinemaState.visible = entries.some((entry) => entry.isIntersecting);
+      if (cinemaState.visible) requestFrame();
     }, { rootMargin: "20% 0px" });
     cinemaVisibilityObserver.observe(cinemaSection);
   }
@@ -1633,6 +1933,23 @@
       if (expressionState.visible) requestFrame();
     }, { rootMargin: "15% 0px" });
     expressionVisibilityObserver.observe(expressionField);
+  }
+
+  if ("IntersectionObserver" in window && closingField) {
+    const closingVisibilityObserver = new IntersectionObserver((entries) => {
+      const visible = entries.some((entry) => entry.isIntersecting);
+      closingState.visible = visible;
+      if (visible && !closingState.entered) {
+        closingState.entered = true;
+        closingState.enteredAt = performance.now();
+      }
+      if (visible) requestFrame();
+    }, { threshold: 0.12, rootMargin: "10% 0px" });
+    closingVisibilityObserver.observe(closingField);
+  } else if (closingField) {
+    closingState.visible = true;
+    closingState.entered = true;
+    closingState.enteredAt = performance.now();
   }
 
   window.addEventListener("pageshow", markLayoutDirty, { passive: true });
