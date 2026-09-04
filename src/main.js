@@ -1130,7 +1130,7 @@
 })();
 
 /* =========================================================
-   Divine auth portal — light takeover + full-screen sign-in
+   Aurora-fold auth portal + full-screen sign-in
    ========================================================= */
 (() => {
   "use strict";
@@ -1166,7 +1166,7 @@
   let currentMode = "signin";
   let sceneListener = null;
 
-  function setLightOrigin(el) {
+  function setAuroraOrigin(el) {
     let x = window.innerWidth / 2;
     let y = window.innerHeight / 2;
     if (el && typeof el.getBoundingClientRect === "function") {
@@ -1212,22 +1212,22 @@
   function openPortal(fromEl) {
     if (!portal.hasAttribute("hidden") && portal.classList.contains("is-open")) return;
     lastOpener = fromEl || null;
-    setLightOrigin(fromEl);
+    setAuroraOrigin(fromEl);
     portal.hidden = false;
     portal.setAttribute("aria-hidden", "false");
     document.body.classList.add("auth-active");
     portal.classList.remove("is-closing", "is-open");
     portal.classList.add("is-priming");
 
-    // next frame → start bloom
+    // Let the portal paint once before the aurora begins unfolding.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         portal.classList.remove("is-priming");
-        portal.classList.add("is-blooming");
+        portal.classList.add("is-folding");
       });
     });
 
-    const bloomHold = reduceMotion ? 220 : 1600;
+    const foldHold = reduceMotion ? 180 : 1050;
     window.setTimeout(() => {
       portal.classList.add("is-open");
       requestAnimationFrame(positionUnderline);
@@ -1237,13 +1237,13 @@
           `.auth-form[data-auth-form="${currentMode}"] input, .auth-form:not([hidden]) input`
         );
         if (focusable) focusable.focus({ preventScroll: true });
-      }, reduceMotion ? 60 : 640);
-    }, bloomHold);
+      }, reduceMotion ? 60 : 460);
+    }, foldHold);
   }
 
   function closePortal() {
     if (portal.hasAttribute("hidden")) return;
-    portal.classList.remove("is-priming", "is-blooming");
+    portal.classList.remove("is-priming", "is-folding");
     portal.classList.add("is-closing");
 
     if (sceneListener) scene.removeEventListener("animationend", sceneListener);
@@ -1262,7 +1262,7 @@
   function finalizeClose() {
     if (finalized) return;
     finalized = true;
-    portal.classList.remove("is-open", "is-closing", "is-blooming", "is-priming");
+    portal.classList.remove("is-open", "is-closing", "is-folding", "is-priming");
     portal.hidden = true;
     portal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("auth-active");

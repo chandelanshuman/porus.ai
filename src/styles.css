@@ -2279,7 +2279,7 @@ p {
 }
 
 /* =========================================================
-   Divine auth portal — light takeover + full-screen sign-in
+   Aurora-fold auth portal + full-screen sign-in
    ========================================================= */
 
 .auth-portal {
@@ -2298,159 +2298,142 @@ p {
 .auth-portal[hidden] { display: none !important; }
 
 .auth-portal.is-priming,
-.auth-portal.is-blooming,
+.auth-portal.is-folding,
 .auth-portal.is-open {
   pointer-events: auto;
 }
 
-/* The seed of divine light growing from the button */
-.auth-bloom {
+/* A narrow aurora filament begins at the triggering button. */
+.auth-aurora-seed {
   position: absolute;
+  z-index: 3;
   left: var(--lx);
   top: var(--ly);
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  transform: translate(-50%, -50%) scale(0);
-  background:
-    radial-gradient(circle,
-      rgba(255, 255, 255, 1) 0%,
-      rgba(255, 253, 240, 0.98) 20%,
-      rgba(255, 247, 220, 0.9)  42%,
-      rgba(255, 240, 200, 0.55) 62%,
-      rgba(255, 232, 180, 0.18) 82%,
-      rgba(255, 232, 180, 0)    100%);
+  width: 22vmax;
+  height: 4px;
+  border-radius: var(--r-pill);
+  transform: translate(-50%, -50%) rotate(-12deg) scaleX(0.02);
+  background: linear-gradient(90deg, transparent, var(--aqua) 28%, #d4fff2 50%, var(--cyan) 70%, transparent);
   box-shadow:
-    0 0 60px 20px rgba(255, 247, 220, 0.35),
-    0 0 200px 60px rgba(255, 240, 200, 0.15);
-  filter: blur(0.6px);
+    0 0 18px 4px rgba(117, 229, 200, 0.5),
+    0 0 70px 16px rgba(112, 216, 237, 0.22);
   opacity: 0;
   will-change: transform, opacity;
   pointer-events: none;
 }
 
-/* Radial white veil that ultimately overtakes the screen */
-.auth-veil {
+/* Midnight replaces the page beneath the moving folds. */
+.auth-aurora-curtain {
   position: absolute;
+  z-index: 0;
   inset: 0;
   background:
     radial-gradient(circle at var(--lx) var(--ly),
-      #ffffff 0%,
-      #fffbe8 55%,
-      #fdf4d1 100%);
+      rgba(20, 65, 65, 0.98) 0%,
+      rgba(7, 27, 37, 0.99) 32%,
+      #050f1a 76%);
   opacity: 0;
   will-change: opacity;
   pointer-events: none;
 }
 
-/* Soft divine rays that pulse during the takeover */
-.auth-rays {
+/* A wide diagonal surface unfolds from the seed line. */
+.auth-aurora-folds {
   position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  opacity: 0;
-  pointer-events: none;
-  will-change: opacity, transform;
-}
-
-.auth-rays span {
-  position: absolute;
+  z-index: 2;
   left: var(--lx);
   top: var(--ly);
-  width: 220vmax;
-  height: 6vmax;
-  transform-origin: 0 50%;
-  background: linear-gradient(90deg,
-    rgba(255, 245, 210, 0) 0%,
-    rgba(255, 245, 210, 0.35) 8%,
-    rgba(255, 251, 232, 0.55) 22%,
-    rgba(255, 251, 232, 0) 70%);
-  filter: blur(6px);
-  border-radius: 100vmax;
+  width: 180vmax;
+  height: 140vmax;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at center, rgba(117, 229, 200, 0.2), transparent 58%),
+    linear-gradient(180deg, rgba(4, 15, 25, 0.98), rgba(8, 35, 43, 0.97) 44%, rgba(19, 17, 46, 0.99));
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(-12deg) scaleY(0.002);
+  transform-origin: center;
+  pointer-events: none;
+  will-change: transform, opacity, filter;
+}
+
+.auth-aurora-folds span {
+  position: absolute;
+  left: -5%;
+  width: 110%;
+  height: clamp(46px, 8vmax, 140px);
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent 8%, rgba(117, 229, 200, 0.18) 28%, rgba(112, 216, 237, 0.42) 50%, rgba(177, 140, 255, 0.28) 68%, transparent 92%);
+  filter: blur(16px);
   mix-blend-mode: screen;
 }
 
-.auth-rays span:nth-child(1) { transform: translateY(-50%) rotate(0deg); }
-.auth-rays span:nth-child(2) { transform: translateY(-50%) rotate(45deg); }
-.auth-rays span:nth-child(3) { transform: translateY(-50%) rotate(90deg); }
-.auth-rays span:nth-child(4) { transform: translateY(-50%) rotate(135deg); }
-.auth-rays span:nth-child(5) { transform: translateY(-50%) rotate(180deg); }
-.auth-rays span:nth-child(6) { transform: translateY(-50%) rotate(225deg); }
-.auth-rays span:nth-child(7) { transform: translateY(-50%) rotate(270deg); }
-.auth-rays span:nth-child(8) { transform: translateY(-50%) rotate(315deg); }
+.auth-aurora-folds span:nth-child(1) { top: 13%; transform: skewX(-18deg); opacity: 0.48; }
+.auth-aurora-folds span:nth-child(2) { top: 30%; transform: skewX(14deg); opacity: 0.7; }
+.auth-aurora-folds span:nth-child(3) { top: 48%; transform: skewX(-9deg); opacity: 0.9; }
+.auth-aurora-folds span:nth-child(4) { top: 66%; transform: skewX(19deg); opacity: 0.62; }
+.auth-aurora-folds span:nth-child(5) { top: 82%; transform: skewX(-13deg); opacity: 0.4; }
 
 /* Sequenced animations */
-.auth-portal.is-blooming .auth-bloom {
-  animation: auth-bloom-grow 2000ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+.auth-portal.is-folding .auth-aurora-seed {
+  animation: auth-aurora-seed-in 720ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.auth-portal.is-blooming .auth-veil {
-  animation: auth-veil-in 1500ms cubic-bezier(0.55, 0, 0.2, 1) 260ms forwards;
+.auth-portal.is-folding .auth-aurora-curtain {
+  animation: auth-aurora-curtain-in 900ms ease-out 180ms forwards;
 }
 
-.auth-portal.is-blooming .auth-rays {
-  animation: auth-rays-pulse 1800ms cubic-bezier(0.5, 0, 0.3, 1) 200ms forwards;
+.auth-portal.is-folding .auth-aurora-folds {
+  animation: auth-aurora-unfold 1080ms cubic-bezier(0.76, 0, 0.24, 1) forwards;
 }
 
 .auth-portal.is-open .auth-scene {
-  animation: auth-scene-in 1100ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: auth-scene-in 820ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.auth-portal.is-open .auth-veil {
-  animation: auth-veil-out 1000ms cubic-bezier(0.55, 0, 0.35, 1) forwards;
+.auth-portal.is-open .auth-aurora-curtain {
+  animation: auth-aurora-curtain-out 680ms ease-out forwards;
 }
 
-.auth-portal.is-open .auth-bloom {
-  animation: auth-bloom-fade 900ms ease-out forwards;
+.auth-portal.is-open .auth-aurora-seed {
+  animation: auth-aurora-layers-out 540ms ease-out forwards;
 }
 
-.auth-portal.is-open .auth-rays {
-  animation: auth-rays-out 900ms ease-out forwards;
+.auth-portal.is-open .auth-aurora-folds {
+  animation: auth-aurora-layers-out 680ms ease-out forwards;
 }
 
 /* Exit animations */
 .auth-portal.is-closing .auth-scene {
   animation: auth-scene-out 520ms cubic-bezier(0.5, 0, 0.7, 0.2) forwards;
 }
-.auth-portal.is-closing .auth-veil {
-  animation: auth-veil-close 640ms cubic-bezier(0.6, 0, 0.3, 1) forwards;
+
+@keyframes auth-aurora-seed-in {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-12deg) scaleX(0.02); }
+  24% { opacity: 1; }
+  68% { opacity: 1; transform: translate(-50%, -50%) rotate(-12deg) scaleX(5.8); }
+  100% { opacity: 0.72; transform: translate(-50%, -50%) rotate(-12deg) scaleX(8) scaleY(3); }
 }
 
-@keyframes auth-bloom-grow {
-  0%   { transform: translate(-50%, -50%) scale(0);   opacity: 0; }
-  8%   { opacity: 1; }
-  22%  { transform: translate(-50%, -50%) scale(6);   opacity: 1; }
-  55%  { transform: translate(-50%, -50%) scale(60);  opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(260); opacity: 1; }
+@keyframes auth-aurora-unfold {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-12deg) scaleY(0.002); filter: saturate(1.35); }
+  12% { opacity: 1; }
+  72% { opacity: 1; filter: saturate(1.2); }
+  100% { opacity: 1; transform: translate(-50%, -50%) rotate(-12deg) scaleY(1); filter: saturate(1); }
 }
 
-@keyframes auth-veil-in {
-  0%   { opacity: 0; }
-  70%  { opacity: 0.95; }
-  100% { opacity: 1; }
+@keyframes auth-aurora-curtain-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-@keyframes auth-veil-out {
-  0%   { opacity: 1; }
-  55%  { opacity: 0.55; }
-  100% { opacity: 0; }
+@keyframes auth-aurora-curtain-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
-@keyframes auth-bloom-fade {
-  0%   { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-@keyframes auth-rays-pulse {
-  0%   { opacity: 0; transform: scale(0.85) rotate(0deg); }
-  40%  { opacity: 0.9; }
-  100% { opacity: 0.7; transform: scale(1.1) rotate(18deg); }
-}
-
-@keyframes auth-rays-out {
-  0%   { opacity: 0.7; }
-  100% { opacity: 0; }
+@keyframes auth-aurora-layers-out {
+  from { opacity: 1; }
+  to { opacity: 0; filter: blur(18px); }
 }
 
 @keyframes auth-scene-in {
@@ -2464,15 +2447,11 @@ p {
   100% { opacity: 0; transform: scale(1.015); }
 }
 
-@keyframes auth-veil-close {
-  0%   { opacity: 0; }
-  100% { opacity: 0; }
-}
-
 /* -------- Scene layout -------- */
 
 .auth-scene {
   position: absolute;
+  z-index: 1;
   inset: 0;
   display: grid;
   grid-template-columns: 40fr 60fr;
@@ -3080,28 +3059,26 @@ p {
 /* -------- Reduced motion -------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-portal.is-blooming .auth-bloom,
-  .auth-portal.is-blooming .auth-rays,
+  .auth-portal.is-folding .auth-aurora-curtain,
   .auth-portal.is-open .auth-scene,
-  .auth-portal.is-open .auth-bloom,
-  .auth-portal.is-open .auth-rays,
+  .auth-portal.is-open .auth-aurora-curtain,
   .auth-portal.is-closing .auth-scene,
-  .auth-portal.is-closing .auth-veil {
-    animation-duration: 320ms !important;
+  .auth-welcome-copy,
+  .auth-forms {
+    animation-duration: 220ms !important;
   }
-  /* Skip the flash-white veil entirely for reduced motion */
-  .auth-portal.is-blooming .auth-veil,
-  .auth-portal.is-open .auth-veil { animation: none !important; opacity: 0 !important; }
+
+  .auth-aurora-seed,
+  .auth-aurora-folds {
+    display: none;
+  }
+
   .auth-portal.is-open .auth-world,
   .auth-portal.is-open .auth-river__stream,
   .auth-portal.is-open .auth-river-bits rect,
   .auth-portal.is-open .auth-stars circle,
   .auth-portal.is-open .auth-stars-halo circle {
     animation: none !important;
-  }
-  .auth-welcome-copy,
-  .auth-forms {
-    animation-duration: 320ms !important;
   }
 }
 
