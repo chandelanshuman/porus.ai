@@ -1197,6 +1197,7 @@
       const isActive = tab.dataset.authTab === mode;
       tab.classList.toggle("is-active", isActive);
       tab.setAttribute("aria-selected", isActive ? "true" : "false");
+      tab.setAttribute("tabindex", isActive ? "0" : "-1");
     });
     Object.entries(forms).forEach(([key, form]) => {
       if (!form) return;
@@ -1288,6 +1289,14 @@
     tab.addEventListener("click", (event) => {
       event.preventDefault();
       switchTab(tab.dataset.authTab);
+    });
+    tab.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const next = event.key === "ArrowRight" ? "signup" : "signin";
+      switchTab(next);
+      const target = tabs.find((t) => t.dataset.authTab === next);
+      if (target) target.focus();
     });
   });
 

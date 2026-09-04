@@ -6,26 +6,49 @@ The site presents Porus as a long-term product company while keeping the present
 
 ## Local preview
 
-No build step or package install is required.
+Node 18+ and npm required. The site is a Vite project.
 
 ```bash
-python3 -m http.server 4173
+npm install
+npm run dev        # http://localhost:4173
 ```
 
-Then open `http://localhost:4173`.
+Production build:
+
+```bash
+npm run build      # emits dist/
+npm run preview    # serves dist/ locally
+```
 
 ## Structure
 
-| File | Purpose |
-|---|---|
-| `index.html` | Semantic page structure, global company narrative, product truth, and metadata |
-| `styles.css` | Porus visual system, responsive layouts, aurora, horizontal history, and cinematic passage |
-| `site.js` | Motion coordinator, hyperspace canvas, language passage, navigation, and real audio players |
-| `DESIGN.md` | Design tokens, interaction grammar, narrative rhythm, and guardrails |
-| `logo.svg` | Existing Porus.ai wordmark, intentionally preserved |
-| `favicon.svg` | Existing Porus.ai mark, intentionally preserved |
-| `sample-en.wav` / `sample-hi.wav` | Prerecorded technical-alpha audio example |
-| `assets/*.woff2` | Self-hosted open-source display and interface fonts |
+```
+.
+├─ index.html              Vite entry, semantic page structure
+├─ package.json            Vite scripts + deps
+├─ vite.config.js          Build config (dist/, cache-busting hashes)
+├─ src/
+│  ├─ main.js              Motion coordinator, canvas, audio, auth portal
+│  └─ styles.css           Design system + auth portal + glass tokens
+├─ public/                 Served as-is at /
+│  ├─ CNAME                GitHub Pages domain pin
+│  ├─ favicon.svg
+│  ├─ logo.svg
+│  ├─ sample-en.wav
+│  ├─ sample-hi.wav
+│  └─ assets/*.woff2       Self-hosted display + interface fonts
+├─ DESIGN.md               Design tokens, interaction grammar, guardrails
+├─ PITCH.md                Company narrative
+└─ CHANGELOG.md            Human-readable history
+```
+
+## Extending the framework
+
+- **Add a page** — drop a new `.html` file at the repo root and register it in `vite.config.js` under `build.rollupOptions.input`. Vite treats each entry as its own document with its own script.
+- **Add React / Vue / Svelte** — `npm i @vitejs/plugin-react` (or the matching plugin) and mount islands from `src/main.js`. The existing vanilla animations keep working.
+- **Add TypeScript** — rename `main.js` to `main.ts`, add `tsconfig.json` with `"allowJs": true, "strict": false` to migrate gradually.
+- **Wire real SSO** — the auth portal already emits `console.info("[porus.auth] SSO requested", provider)` and submit payloads. Point those at your auth backend (e.g. NextAuth, Clerk, Supabase Auth, Auth.js).
+- **Deploy** — `npm run build` produces a static `dist/` you can push to any host (GitHub Pages, Vercel, Netlify, Cloudflare Pages, S3).
 
 ## Signature experience
 

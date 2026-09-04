@@ -1,0 +1,18 @@
+{
+  "name": "porus-ai",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Porus.ai — the human expression company. Vanilla Vite build with the divine auth portal.",
+  "scripts": {
+    "dev": "vite --port 4173 --host",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --host"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true
+  }
+}
