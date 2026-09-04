@@ -126,6 +126,7 @@
 
   const historySection = document.querySelector("[data-horizontal]");
   const historyTrack = document.querySelector("[data-horizontal-track]");
+  const historyProgress = document.querySelector("[data-history-progress]");
   const historyState = {
     enabled: false,
     travel: 0,
@@ -163,6 +164,24 @@
       root.style.setProperty("--history-x", `${x.toFixed(2)}px`);
       historyState.lastX = x;
     }
+  }
+
+  function updateMobileHistoryProgress() {
+    if (!historyTrack || !historyProgress) return;
+    const maximum = Math.max(1, historyTrack.scrollWidth - historyTrack.clientWidth);
+    const progress = clamp(historyTrack.scrollLeft / maximum);
+    historyProgress.style.transform = `scaleX(${progress.toFixed(4)})`;
+  }
+
+  if (historyTrack) {
+    let historyProgressFrame = 0;
+    historyTrack.addEventListener("scroll", () => {
+      if (historyProgressFrame) return;
+      historyProgressFrame = requestAnimationFrame(() => {
+        historyProgressFrame = 0;
+        updateMobileHistoryProgress();
+      });
+    }, { passive: true });
   }
 
   /* One-time editorial drift */
@@ -257,7 +276,7 @@
 
   suiteRows.forEach((row) => {
     row.addEventListener("pointerenter", (event) => {
-      if (reduceMotion || !finePointerQuery.matches) return;
+      if (reduceMotion || !finePointerQuery.matches || event.pointerType === "touch") return;
       if (suitePointerState.row && suitePointerState.row !== row) {
         clearSuitePointerStyles(suitePointerState.row);
         suitePointerState.currentX = 0.5;
@@ -278,6 +297,22 @@
 
     row.addEventListener("pointerleave", resetSuitePointer);
     row.addEventListener("pointercancel", resetSuitePointer);
+
+    row.addEventListener("pointerdown", (event) => {
+      if (reduceMotion || event.pointerType === "mouse") return;
+      if (suitePointerState.row && suitePointerState.row !== row) clearSuitePointerStyles(suitePointerState.row);
+      suitePointerState.row = row;
+      suitePointerState.rect = row.getBoundingClientRect();
+      suitePointerState.active = true;
+      targetSuitePointer(row, event);
+      row.classList.add("is-pointer-active");
+      requestFrame();
+    }, { passive: true });
+
+    row.addEventListener("pointerup", (event) => {
+      if (event.pointerType === "mouse") return;
+      window.setTimeout(resetSuitePointer, 180);
+    }, { passive: true });
   });
 
   /* Living expression field */
@@ -334,7 +369,9 @@
     const changed = sizeCanvas(expressionCanvas, expressionState);
     if (!changed && expressionState.motes.length) return;
     const random = seeded(8252026);
-    const count = Math.max(140, Math.min(210, Math.round(expressionState.width * expressionState.height / 1350)));
+    const count = desktopQuery.matches
+      ? Math.max(140, Math.min(210, Math.round(expressionState.width * expressionState.height / 1350)))
+      : Math.max(78, Math.min(112, Math.round(expressionState.width * expressionState.height / 900)));
     expressionState.motes = Array.from({ length: count }, (_, index) => {
       const tint = random();
       return {
@@ -486,17 +523,21 @@
     if (reduceMotion) expressionState.staticDrawn = true;
   }
 
+  function targetExpressionPointer(event) {
+    const rect = expressionCanvas.getBoundingClientRect();
+    expressionState.targetX = clamp((event.clientX / window.innerWidth - 0.5) * 2, -1, 1);
+    expressionState.targetY = clamp((event.clientY / window.innerHeight - 0.5) * 2, -1, 1);
+    expressionState.cursorTargetX = event.clientX - rect.left;
+    expressionState.cursorTargetY = event.clientY - rect.top;
+    expressionState.pointerActive = true;
+    expressionState.lastPointerAt = performance.now();
+    requestFrame();
+  }
+
   if (finePointerQuery.matches && expressionCanvas) {
     window.addEventListener("pointermove", (event) => {
       if (reduceMotion || !expressionState.visible) return;
-      const rect = expressionCanvas.getBoundingClientRect();
-      expressionState.targetX = clamp((event.clientX / window.innerWidth - 0.5) * 2, -1, 1);
-      expressionState.targetY = clamp((event.clientY / window.innerHeight - 0.5) * 2, -1, 1);
-      expressionState.cursorTargetX = event.clientX - rect.left;
-      expressionState.cursorTargetY = event.clientY - rect.top;
-      expressionState.pointerActive = true;
-      expressionState.lastPointerAt = performance.now();
-      requestFrame();
+      targetExpressionPointer(event);
     }, { passive: true });
 
     document.documentElement.addEventListener("pointerleave", () => {
@@ -505,6 +546,30 @@
       expressionState.pointerActive = false;
       requestFrame();
     }, { passive: true });
+  }
+
+  const heroSection = expressionField?.closest(".hero");
+  if (heroSection && expressionCanvas) {
+    let expressionTouchId = null;
+    heroSection.addEventListener("pointerdown", (event) => {
+      if (reduceMotion || event.pointerType === "mouse") return;
+      expressionTouchId = event.pointerId;
+      targetExpressionPointer(event);
+    }, { passive: true });
+    heroSection.addEventListener("pointermove", (event) => {
+      if (reduceMotion || event.pointerId !== expressionTouchId) return;
+      targetExpressionPointer(event);
+    }, { passive: true });
+    const releaseExpressionTouch = (event) => {
+      if (event.pointerId !== expressionTouchId) return;
+      expressionTouchId = null;
+      expressionState.pointerActive = false;
+      expressionState.targetX = 0;
+      expressionState.targetY = 0;
+      requestFrame();
+    };
+    heroSection.addEventListener("pointerup", releaseExpressionTouch, { passive: true });
+    heroSection.addEventListener("pointercancel", releaseExpressionTouch, { passive: true });
   }
 
   function beginExpressionFlight(event) {
@@ -1748,6 +1813,7 @@
     measureWarp();
     if (expressionCanvas) buildExpressionMotes();
     if (closingCanvas) buildClosingStars();
+    updateMobileHistoryProgress();
     sizeCinemaCanvases();
     audioPlayers.forEach(sizePlayerCanvas);
     updateHistory();
