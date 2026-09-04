@@ -6,37 +6,66 @@ The site presents Porus as a long-term product company while keeping the present
 
 ## Local preview
 
-Node 18+ and npm required. The site is a Vite project.
+Node 20+ and npm required. The site is a Vite project.
 
 ```bash
 npm install
-npm run dev        # http://localhost:4173
-```
-
-Production build:
-
-```bash
+npm run dev        # http://localhost:4173  (HMR)
 npm run build      # emits dist/
 npm run preview    # serves dist/ locally
 ```
+
+## Developer toolchain
+
+```bash
+npm test              # Vitest — smoke tests over the shipped bundle contract
+npm run test:watch    # Vitest watch mode
+npm run lint          # ESLint (flat config, ignores prettier-formattable rules)
+npm run lint:fix      # ESLint auto-fix
+npm run format        # Prettier write across the repo
+npm run format:check  # Prettier verify (safe in CI)
+npm run typecheck     # tsc --noEmit with allowJs=true for gradual TS adoption
+```
+
+CI runs lint → test → build → deploy on every push to `main` (see [.github/workflows/deploy.yml](.github/workflows/deploy.yml)).
+
+## Environment variables
+
+Copy `.env.example` to `.env.local` and fill in provider IDs. Only variables prefixed with `VITE_` are exposed to the browser bundle.
+
+```bash
+cp .env.example .env.local
+```
+
+Read them in `src/main.js` with `import.meta.env.VITE_*`.
 
 ## Structure
 
 ```
 .
 ├─ index.html              Vite entry, semantic page structure
-├─ package.json            Vite scripts + deps
+├─ package.json            Vite + toolchain scripts + deps
 ├─ vite.config.js          Build config (dist/, cache-busting hashes)
+├─ vitest.config.js        Test runner config
+├─ tsconfig.json           TypeScript on-ramp (allowJs, checkJs off, strict off)
+├─ eslint.config.js        Flat ESLint config
+├─ .prettierrc.json        Prettier style
+├─ .env.example            Copy → .env.local for real provider IDs
 ├─ src/
 │  ├─ main.js              Motion coordinator, canvas, audio, auth portal
 │  └─ styles.css           Design system + auth portal + glass tokens
 ├─ public/                 Served as-is at /
 │  ├─ CNAME                GitHub Pages domain pin
+│  ├─ 404.html             Fallback page for GH Pages / any static host
 │  ├─ favicon.svg
 │  ├─ logo.svg
 │  ├─ sample-en.wav
 │  ├─ sample-hi.wav
 │  └─ assets/*.woff2       Self-hosted display + interface fonts
+├─ tests/
+│  └─ smoke.test.js        Bundle contract tests (portal, tokens, wiring)
+├─ .github/workflows/
+│  └─ deploy.yml           lint → test → build → deploy to GitHub Pages
 ├─ DESIGN.md               Design tokens, interaction grammar, guardrails
 ├─ PITCH.md                Company narrative
 └─ CHANGELOG.md            Human-readable history

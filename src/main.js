@@ -1351,7 +1351,12 @@
   portal.querySelectorAll("[data-auth-provider]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const provider = btn.dataset.authProvider;
-      console.info(`[porus.auth] SSO requested`, provider);
+      const clientIds = {
+        google: import.meta.env?.VITE_AUTH_GOOGLE_CLIENT_ID || "",
+        github: import.meta.env?.VITE_AUTH_GITHUB_CLIENT_ID || "",
+      };
+      const clientId = clientIds[provider] || "";
+      console.info(`[porus.auth] SSO requested`, { provider, clientIdConfigured: Boolean(clientId) });
       btn.animate(
         [{ transform: "scale(1)" }, { transform: "scale(0.97)" }, { transform: "scale(1)" }],
         { duration: 260, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }

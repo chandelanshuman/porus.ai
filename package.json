@@ -7,12 +7,27 @@
   "scripts": {
     "dev": "vite --port 4173 --host",
     "build": "vite build",
-    "preview": "vite preview --port 4173 --host"
+    "preview": "vite preview --port 4173 --host",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint \"src/**/*.{js,ts}\" \"tests/**/*.{js,ts}\"",
+    "lint:fix": "eslint --fix \"src/**/*.{js,ts}\" \"tests/**/*.{js,ts}\"",
+    "format": "prettier --write \"**/*.{js,ts,css,html,json,md}\"",
+    "format:check": "prettier --check \"**/*.{js,ts,css,html,json,md}\"",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "vite": "^5.4.10"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.6",
+    "typescript": "^7.0.2",
+    "vite": "^6.4.3",
+    "vitest": "^5.0.0"
   },
   "allowScripts": {
-    "esbuild@0.21.5": true
+    "esbuild@0.25.12": true,
+    "fsevents@2.3.3": true
   }
 }
