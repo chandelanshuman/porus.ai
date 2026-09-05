@@ -136,7 +136,7 @@
 
   function configureHistory() {
     if (!historySection || !historyTrack) return;
-    const shouldEnhance = desktopQuery.matches && !reduceMotion;
+    const shouldEnhance = desktopQuery.matches && !reduceMotion && window.innerHeight > 560;
     historyState.enabled = shouldEnhance;
     historySection.classList.toggle("is-horizontal", shouldEnhance);
 
@@ -384,8 +384,11 @@
       expressionTipText.textContent = greeting.text;
       expressionTipMote = mote;
     }
-    expressionTip.style.setProperty("--tip-x", `${clamp(x, 24, expressionState.width - 24).toFixed(1)}px`);
-    expressionTip.style.setProperty("--tip-y", `${clamp(y, 52, expressionState.height + 8).toFixed(1)}px`);
+    const edgeMargin = Math.min(120, expressionState.width * 0.5);
+    const flipBelow = y < 96;
+    expressionTip.classList.toggle("is-below", flipBelow);
+    expressionTip.style.setProperty("--tip-x", `${clamp(x, edgeMargin, expressionState.width - edgeMargin).toFixed(1)}px`);
+    expressionTip.style.setProperty("--tip-y", `${clamp(y, 8, expressionState.height - 8).toFixed(1)}px`);
     expressionTip.classList.add("is-visible");
   }
   const expressionState = {
@@ -2222,6 +2225,144 @@
     requestAnimationFrame(positionUnderline);
   }
 
+  /* Cursor-reactive water for the welcome river */
+
+  const welcomePane = portal.querySelector(".auth-welcome");
+  const worldsSvg = portal.querySelector(".auth-worlds-svg");
+  const riverStreams = Array.from(portal.querySelectorAll("[data-river-base]")).map((path) => ({
+    path,
+    base: parseFloat(path.dataset.riverBase),
+    amp: parseFloat(path.dataset.riverAmp),
+    speed: parseFloat(path.dataset.riverSpeed),
+    phase: parseFloat(path.dataset.riverPhase),
+    depth: parseFloat(path.dataset.riverDepth) || 1,
+    wavelength: parseFloat(path.dataset.riverLength) || 180
+  }));
+
+  const river = {
+    running: false,
+    rafId: 0,
+    pointerX: 400,
+    pointerY: -600,
+    targetX: 400,
+    targetY: -600,
+    ripples: [],
+    lastRippleX: Number.NaN,
+    lastRippleAt: 0
+  };
+
+  const RIVER_X_START = -40;
+  const RIVER_X_END = 860;
+  const RIVER_STEP = 20;
+
+  function riverPointFromEvent(event) {
+    const ctm = worldsSvg?.getScreenCTM();
+    if (!ctm) return null;
+    return new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
+  }
+
+  function spawnRipple(x, strength, now) {
+    river.ripples.push({ x, strength, start: now });
+    if (river.ripples.length > 12) river.ripples.shift();
+    river.lastRippleX = x;
+    river.lastRippleAt = now;
+  }
+
+  function riverFrame() {
+    if (!river.running) return;
+    const now = performance.now();
+    const seconds = now / 1000;
+
+    river.pointerX += (river.targetX - river.pointerX) * 0.16;
+    river.pointerY += (river.targetY - river.pointerY) * 0.16;
+    river.ripples = river.ripples.filter((ripple) => now - ripple.start < 2400);
+
+    riverStreams.forEach((stream) => {
+      const nearCursor = Math.exp(-Math.pow((stream.base - river.pointerY) / 150, 2));
+      const points = [];
+      for (let x = RIVER_X_START; x <= RIVER_X_END; x += RIVER_STEP) {
+        let y = stream.base
+          + Math.sin(x / stream.wavelength * Math.PI * 2 + seconds * stream.speed + stream.phase) * stream.amp
+          + Math.sin(x / (stream.wavelength * 0.53) + seconds * stream.speed * 1.7 + stream.phase * 2.3) * stream.amp * 0.4;
+
+        const dx = x - river.pointerX;
+        const spread = dx / 95;
+        const press = (1 - 2 * spread * spread) * Math.exp(-spread * spread);
+        y += press * nearCursor * 13 * stream.depth;
+
+        river.ripples.forEach((ripple) => {
+          const age = (now - ripple.start) / 1000;
+          const radius = age * 230;
+          const distance = Math.abs(x - ripple.x);
+          const band = Math.exp(-Math.pow((distance - radius) / 36, 2));
+          const decay = Math.exp(-age * 1.9) * ripple.strength;
+          y += Math.sin((distance - radius) / 11) * band * decay * 9 * stream.depth;
+        });
+
+        points.push({ x, y });
+      }
+
+      let d = `M ${points[0].x} ${points[0].y.toFixed(2)}`;
+      for (let index = 1; index < points.length - 1; index += 1) {
+        const point = points[index];
+        const next = points[index + 1];
+        d += ` Q ${point.x} ${point.y.toFixed(2)} ${(point.x + next.x) / 2} ${((point.y + next.y) / 2).toFixed(2)}`;
+      }
+      const last = points[points.length - 1];
+      d += ` L ${last.x} ${last.y.toFixed(2)}`;
+      stream.path.setAttribute("d", d);
+    });
+
+    river.rafId = requestAnimationFrame(riverFrame);
+  }
+
+  function startRiver() {
+    if (reduceMotion || river.running || !riverStreams.length || !worldsSvg) return;
+    river.running = true;
+    river.rafId = requestAnimationFrame(riverFrame);
+  }
+
+  function stopRiver() {
+    river.running = false;
+    if (river.rafId) cancelAnimationFrame(river.rafId);
+    river.rafId = 0;
+    river.ripples = [];
+    river.targetX = 400;
+    river.targetY = -600;
+    river.pointerX = 400;
+    river.pointerY = -600;
+  }
+
+  if (welcomePane && worldsSvg && riverStreams.length) {
+    welcomePane.addEventListener("pointermove", (event) => {
+      if (!river.running) return;
+      const point = riverPointFromEvent(event);
+      if (!point) return;
+      river.targetX = point.x;
+      river.targetY = point.y;
+      const now = performance.now();
+      const moved = Math.abs(point.x - river.lastRippleX);
+      const nearWater = point.y > 690;
+      if (nearWater && (!Number.isFinite(river.lastRippleX) || (moved > 26 && now - river.lastRippleAt > 110))) {
+        spawnRipple(point.x, Math.min(1, 0.4 + moved / 130), now);
+      }
+    }, { passive: true });
+
+    welcomePane.addEventListener("pointerdown", (event) => {
+      if (!river.running) return;
+      const point = riverPointFromEvent(event);
+      if (!point) return;
+      river.targetX = point.x;
+      river.targetY = point.y;
+      spawnRipple(point.x, 1.3, performance.now());
+    }, { passive: true });
+
+    welcomePane.addEventListener("pointerleave", () => {
+      river.targetX = 400;
+      river.targetY = -600;
+    }, { passive: true });
+  }
+
   function openPortal(fromEl) {
     if (!portal.hasAttribute("hidden") && portal.classList.contains("is-open")) return;
     lastOpener = fromEl || null;
@@ -2229,6 +2370,7 @@
     portal.hidden = false;
     portal.setAttribute("aria-hidden", "false");
     document.body.classList.add("auth-active");
+    startRiver();
     portal.classList.remove("is-closing", "is-open");
     portal.classList.add("is-priming");
 
@@ -2314,6 +2456,7 @@
     portal.hidden = true;
     portal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("auth-active");
+    stopRiver();
     if (lastOpener && typeof lastOpener.focus === "function") {
       try { lastOpener.focus({ preventScroll: false }); } catch (_) { /* noop */ }
     }
