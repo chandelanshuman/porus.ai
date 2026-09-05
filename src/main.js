@@ -472,16 +472,16 @@
 
   function murmurationPoint(mote, amount, seconds) {
     const { width, height, pointerX, pointerY } = expressionState;
-    const start = { x: width * 0.01, y: height * 0.73 };
+    const start = { x: width * -0.01, y: height * 0.72 };
     const controlA = {
       x: width * (0.24 + pointerX * 0.035),
-      y: height * (0.03 + pointerY * 0.06)
+      y: height * (0.0 + pointerY * 0.06)
     };
     const controlB = {
       x: width * (0.71 + pointerX * 0.045),
-      y: height * (0.97 + pointerY * 0.075)
+      y: height * (0.96 + pointerY * 0.075)
     };
-    const end = { x: width * 0.995, y: height * 0.24 };
+    const end = { x: width * 1.01, y: height * 0.12 };
     const point = cubicPoint(start, controlA, controlB, end, amount);
     const tangent = cubicTangent(start, controlA, controlB, end, amount);
     const tangentLength = Math.hypot(tangent.x, tangent.y) || 1;
@@ -575,7 +575,7 @@
     expressionState.motes.forEach((mote) => {
       const amount = (mote.origin + seconds * 0.0085 * mote.speed) % 1;
       const point = applyMoteCursor(murmurationPoint(mote, amount, seconds), mote);
-      const edgeFade = Math.pow(Math.sin(amount * Math.PI), 0.52);
+      const edgeFade = Math.pow(Math.sin(amount * Math.PI), 0.38);
       const shimmer = 0.72 + Math.sin(seconds * 0.7 + mote.phase) * 0.28;
       const alpha = mote.alpha * edgeFade * shimmer;
       const length = mote.length * (0.65 + mote.depth * 0.6);
