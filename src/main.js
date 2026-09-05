@@ -319,6 +319,75 @@
 
   const expressionField = document.querySelector("[data-expression-field]");
   const expressionCanvas = expressionField?.querySelector("[data-expression-canvas]");
+
+  const DIVINE_GREETINGS = [
+    { language: "English", text: "Welcome to the divine" },
+    { language: "Hindi", text: "दिव्य में आपका स्वागत है" },
+    { language: "Sanskrit", text: "दिव्ये स्वागतम्" },
+    { language: "Tamil", text: "தெய்வீகத்திற்கு வரவேற்கிறோம்" },
+    { language: "Telugu", text: "దైవత్వానికి స్వాగతం" },
+    { language: "Bengali", text: "ঐশ্বরিকে স্বাগতম" },
+    { language: "Marathi", text: "दिव्यात आपले स्वागत आहे" },
+    { language: "Kannada", text: "ದೈವಿಕಕ್ಕೆ ಸುಸ್ವಾಗತ" },
+    { language: "Malayalam", text: "ദിവ്യതയിലേക്ക് സ്വാഗതം" },
+    { language: "Gujarati", text: "દિવ્યમાં આપનું સ્વાગત છે" },
+    { language: "Punjabi", text: "ਦਿੱਵਯ ਵਿੱਚ ਜੀ ਆਇਆਂ ਨੂੰ" },
+    { language: "Urdu", text: "الوہی میں خوش آمدید" },
+    { language: "Arabic", text: "مرحباً بك في الإلهي" },
+    { language: "French", text: "Bienvenue dans le divin" },
+    { language: "Spanish", text: "Bienvenido a lo divino" },
+    { language: "Portuguese", text: "Bem-vindo ao divino" },
+    { language: "Italian", text: "Benvenuto nel divino" },
+    { language: "German", text: "Willkommen im Göttlichen" },
+    { language: "Russian", text: "Добро пожаловать в божественное" },
+    { language: "Greek", text: "Καλώς ήρθες στο θείο" },
+    { language: "Japanese", text: "神聖なる世界へようこそ" },
+    { language: "Korean", text: "신성한 세계에 오신 것을 환영합니다" },
+    { language: "Mandarin", text: "欢迎来到神圣之境" },
+    { language: "Thai", text: "ยินดีต้อนรับสู่ความศักดิ์สิทธิ์" },
+    { language: "Vietnamese", text: "Chào mừng đến với cõi thiêng" },
+    { language: "Indonesian", text: "Selamat datang di yang ilahi" },
+    { language: "Turkish", text: "İlahi olana hoş geldiniz" },
+    { language: "Swahili", text: "Karibu kwenye utakatifu" },
+    { language: "Hebrew", text: "ברוכים הבאים אל האלוהי" },
+    { language: "Polish", text: "Witaj w boskości" },
+    { language: "Dutch", text: "Welkom in het goddelijke" },
+    { language: "Amharic", text: "ወደ መለኮታዊው እንኳን ደህና መጡ" }
+  ];
+
+  let expressionTip = null;
+  let expressionTipLanguage = null;
+  let expressionTipText = null;
+  let expressionTipMote = null;
+
+  if (expressionField) {
+    expressionTip = document.createElement("div");
+    expressionTip.className = "expression-tip";
+    expressionTipLanguage = document.createElement("span");
+    expressionTipLanguage.className = "expression-tip-language";
+    expressionTipText = document.createElement("span");
+    expressionTipText.className = "expression-tip-text";
+    expressionTip.append(expressionTipLanguage, expressionTipText);
+    expressionField.appendChild(expressionTip);
+  }
+
+  function hideExpressionTip() {
+    expressionTipMote = null;
+    expressionTip?.classList.remove("is-visible");
+  }
+
+  function showExpressionTip(mote, x, y) {
+    if (!expressionTip) return;
+    if (expressionTipMote !== mote) {
+      const greeting = DIVINE_GREETINGS[mote.greeting % DIVINE_GREETINGS.length];
+      expressionTipLanguage.textContent = greeting.language;
+      expressionTipText.textContent = greeting.text;
+      expressionTipMote = mote;
+    }
+    expressionTip.style.setProperty("--tip-x", `${clamp(x, 24, expressionState.width - 24).toFixed(1)}px`);
+    expressionTip.style.setProperty("--tip-y", `${clamp(y, 52, expressionState.height + 8).toFixed(1)}px`);
+    expressionTip.classList.add("is-visible");
+  }
   const expressionState = {
     context: null,
     width: 0,
@@ -370,21 +439,22 @@
     if (!changed && expressionState.motes.length) return;
     const random = seeded(8252026);
     const count = desktopQuery.matches
-      ? Math.max(140, Math.min(210, Math.round(expressionState.width * expressionState.height / 1350)))
-      : Math.max(78, Math.min(112, Math.round(expressionState.width * expressionState.height / 900)));
+      ? Math.max(190, Math.min(290, Math.round(expressionState.width * expressionState.height / 1150)))
+      : Math.max(96, Math.min(140, Math.round(expressionState.width * expressionState.height / 800)));
     expressionState.motes = Array.from({ length: count }, (_, index) => {
       const tint = random();
       return {
         origin: random(),
-        lane: (random() - 0.5) * expressionState.height * 0.3,
+        lane: (random() - 0.5) * expressionState.height * 0.42,
         phase: random() * Math.PI * 2,
         speed: 0.55 + random() * 0.8,
         depth: 0.3 + random() * 0.7,
-        length: 2 + random() * 7,
-        width: 0.55 + random() * 1.05,
-        alpha: 0.28 + random() * 0.58,
+        length: 2.4 + random() * 8,
+        width: 0.6 + random() * 1.15,
+        alpha: 0.3 + random() * 0.6,
         color: tint < 0.7 ? [199, 241, 229] : tint < 0.86 ? [245, 217, 168] : [188, 169, 244],
         bright: index % 13 === 0,
+        greeting: index % DIVINE_GREETINGS.length,
         cursorOffsetX: 0,
         cursorOffsetY: 0,
         cursorReach: 0.17 + random() * 0.17,
@@ -402,24 +472,24 @@
 
   function murmurationPoint(mote, amount, seconds) {
     const { width, height, pointerX, pointerY } = expressionState;
-    const start = { x: width * 0.02, y: height * 0.69 };
+    const start = { x: width * 0.01, y: height * 0.73 };
     const controlA = {
-      x: width * (0.25 + pointerX * 0.035),
-      y: height * (0.08 + pointerY * 0.06)
+      x: width * (0.24 + pointerX * 0.035),
+      y: height * (0.03 + pointerY * 0.06)
     };
     const controlB = {
-      x: width * (0.7 + pointerX * 0.045),
-      y: height * (0.9 + pointerY * 0.075)
+      x: width * (0.71 + pointerX * 0.045),
+      y: height * (0.97 + pointerY * 0.075)
     };
-    const end = { x: width * 0.99, y: height * 0.29 };
+    const end = { x: width * 0.995, y: height * 0.24 };
     const point = cubicPoint(start, controlA, controlB, end, amount);
     const tangent = cubicTangent(start, controlA, controlB, end, amount);
     const tangentLength = Math.hypot(tangent.x, tangent.y) || 1;
     const tangentX = tangent.x / tangentLength;
     const tangentY = tangent.y / tangentLength;
-    const flockEnvelope = 0.22 + Math.pow(Math.sin(amount * Math.PI), 0.72) * 0.92;
+    const flockEnvelope = 0.26 + Math.pow(Math.sin(amount * Math.PI), 0.68) * 1.08;
     const breathingLane = mote.lane * flockEnvelope * (0.76 + Math.sin(seconds * 0.28 + mote.phase) * 0.24);
-    const drift = Math.sin(seconds * (0.22 + mote.depth * 0.14) + mote.phase * 1.7) * 7 * mote.depth;
+    const drift = Math.sin(seconds * (0.22 + mote.depth * 0.14) + mote.phase * 1.7) * 9 * mote.depth;
     point.x += -tangentY * (breathingLane + drift);
     point.y += tangentX * (breathingLane + drift);
 
@@ -472,13 +542,17 @@
 
     const seconds = reduceMotion ? 3.8 : now / 1000;
     context.clearRect(0, 0, width, height);
-    if (expressionState.flight) return;
+    if (expressionState.flight) {
+      hideExpressionTip();
+      return;
+    }
     context.save();
     context.globalCompositeOperation = "lighter";
 
     const glows = [
-      { amount: 0.34, radius: width * 0.18, color: [117, 229, 200], alpha: 0.095 },
-      { amount: 0.69, radius: width * 0.16, color: [112, 216, 237], alpha: 0.07 }
+      { amount: 0.34, radius: width * 0.22, color: [117, 229, 200], alpha: 0.105 },
+      { amount: 0.69, radius: width * 0.2, color: [112, 216, 237], alpha: 0.08 },
+      { amount: 0.52, radius: width * 0.15, color: [188, 169, 244], alpha: 0.055 }
     ];
     const guideMote = { lane: 0, phase: 0, depth: 0.5 };
     glows.forEach((glow) => {
@@ -492,6 +566,12 @@
       context.fill();
     });
 
+    const hoverReach = 26;
+    let hoverMote = null;
+    let hoverX = 0;
+    let hoverY = 0;
+    let hoverDistance = hoverReach;
+
     expressionState.motes.forEach((mote) => {
       const amount = (mote.origin + seconds * 0.0085 * mote.speed) % 1;
       const point = applyMoteCursor(murmurationPoint(mote, amount, seconds), mote);
@@ -499,6 +579,16 @@
       const shimmer = 0.72 + Math.sin(seconds * 0.7 + mote.phase) * 0.28;
       const alpha = mote.alpha * edgeFade * shimmer;
       const length = mote.length * (0.65 + mote.depth * 0.6);
+
+      if (expressionState.pointerActive && !reduceMotion && edgeFade > 0.2) {
+        const cursorDistance = Math.hypot(point.x - expressionState.cursorX, point.y - expressionState.cursorY);
+        if (cursorDistance < hoverDistance) {
+          hoverDistance = cursorDistance;
+          hoverMote = mote;
+          hoverX = point.x;
+          hoverY = point.y;
+        }
+      }
 
       if (mote.bright) {
         const glow = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, 9 + mote.depth * 7);
@@ -518,6 +608,28 @@
       context.lineTo(point.x + point.tangentX * length * 0.5, point.y + point.tangentY * length * 0.5);
       context.stroke();
     });
+
+    if (hoverMote) {
+      const haloRadius = 13 + hoverMote.depth * 9;
+      const halo = context.createRadialGradient(hoverX, hoverY, 0, hoverX, hoverY, haloRadius);
+      halo.addColorStop(0, rgb(hoverMote.color, 0.55));
+      halo.addColorStop(0.4, rgb(hoverMote.color, 0.2));
+      halo.addColorStop(1, rgb(hoverMote.color, 0));
+      context.fillStyle = halo;
+      context.beginPath();
+      context.arc(hoverX, hoverY, haloRadius, 0, Math.PI * 2);
+      context.fill();
+
+      context.strokeStyle = rgb(hoverMote.color, 0.75);
+      context.lineWidth = 1;
+      context.beginPath();
+      context.arc(hoverX, hoverY, 5.5 + Math.sin(seconds * 3.4) * 1.2, 0, Math.PI * 2);
+      context.stroke();
+
+      showExpressionTip(hoverMote, hoverX, hoverY);
+    } else {
+      hideExpressionTip();
+    }
     context.restore();
 
     if (reduceMotion) expressionState.staticDrawn = true;
@@ -544,6 +656,7 @@
       expressionState.targetX = 0;
       expressionState.targetY = 0;
       expressionState.pointerActive = false;
+      hideExpressionTip();
       requestFrame();
     }, { passive: true });
   }

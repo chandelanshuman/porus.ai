@@ -627,10 +627,11 @@ body.auth-starflight .aurora {
   --field-shift-x: 0px;
   --field-shift-y: 0px;
   position: relative;
-  width: min(100%, 520px);
-  aspect-ratio: 1;
+  width: min(136%, 700px);
+  aspect-ratio: 1.04;
   justify-self: end;
   isolation: isolate;
+  pointer-events: none;
 }
 
 .hero-score::before {
@@ -653,6 +654,62 @@ body.auth-starflight .aurora {
   width: 100%;
   height: 100%;
   overflow: visible;
+}
+
+.expression-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  display: grid;
+  gap: 2px;
+  max-width: 240px;
+  padding: 9px 14px 10px;
+  border: 1px solid rgba(199, 241, 229, 0.22);
+  border-radius: 12px;
+  background: rgba(6, 18, 28, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 32px rgba(2, 10, 16, 0.45), 0 0 22px rgba(117, 229, 200, 0.12);
+  opacity: 0;
+  transform: translate3d(var(--tip-x, 0px), var(--tip-y, 0px), 0) translate(-50%, calc(-100% - 16px)) scale(0.94);
+  transform-origin: 50% 100%;
+  transition: opacity 260ms var(--ease-out), transform 260ms var(--ease-out);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.expression-tip.is-visible {
+  opacity: 1;
+  transform: translate3d(var(--tip-x, 0px), var(--tip-y, 0px), 0) translate(-50%, calc(-100% - 16px)) scale(1);
+}
+
+.expression-tip::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 1px solid rgba(199, 241, 229, 0.22);
+  border-bottom: 1px solid rgba(199, 241, 229, 0.22);
+  background: rgba(6, 18, 28, 0.82);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.expression-tip-language {
+  color: rgba(117, 229, 200, 0.9);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.expression-tip-text {
+  color: rgba(233, 248, 244, 0.96);
+  font-size: 0.92rem;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
 }
 
 /* Horizontal history */
@@ -2010,10 +2067,10 @@ body.auth-starflight .aurora {
 
   .hero-score {
     position: absolute;
-    top: 15%;
-    right: -7%;
-    width: min(76vw, 440px);
-    opacity: 0.52;
+    top: 12%;
+    right: -9%;
+    width: min(96vw, 540px);
+    opacity: 0.58;
   }
 
   .hero-lede,
