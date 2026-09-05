@@ -2225,7 +2225,10 @@
     requestAnimationFrame(positionUnderline);
   }
 
-  /* Cursor-reactive water for the welcome river */
+  /* Cursor-reactive water for the welcome river.
+     A 1D heightfield wave simulation: the cursor injects velocity into the
+     surface, the field propagates it as travelling waves that reflect,
+     interfere, and settle — the streams sample the same water. */
 
   const welcomePane = portal.querySelector(".auth-welcome");
   const worldsSvg = portal.querySelector(".auth-worlds-svg");
@@ -2239,6 +2242,13 @@
     wavelength: parseFloat(path.dataset.riverLength) || 180
   }));
 
+  const RIVER_X_START = -40;
+  const RIVER_X_END = 860;
+  const RIVER_STEP = 20;
+  const RIVER_COLS = 96;
+  const RIVER_SURFACE_Y = 812;
+  const RIVER_MAX_SWELL = 22;
+
   const river = {
     running: false,
     rafId: 0,
@@ -2246,14 +2256,12 @@
     pointerY: -600,
     targetX: 400,
     targetY: -600,
-    ripples: [],
-    lastRippleX: Number.NaN,
-    lastRippleAt: 0
+    lastPointerX: Number.NaN,
+    lastPointerY: Number.NaN,
+    lastPointerAt: 0,
+    heights: new Float32Array(RIVER_COLS),
+    velocities: new Float32Array(RIVER_COLS)
   };
-
-  const RIVER_X_START = -40;
-  const RIVER_X_END = 860;
-  const RIVER_STEP = 20;
 
   function riverPointFromEvent(event) {
     const ctm = worldsSvg?.getScreenCTM();
@@ -2261,24 +2269,57 @@
     return new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
   }
 
-  function spawnRipple(x, strength, now) {
-    river.ripples.push({ x, strength, start: now });
-    if (river.ripples.length > 12) river.ripples.shift();
-    river.lastRippleX = x;
-    river.lastRippleAt = now;
+  const riverColumnAt = (x) => (x - RIVER_X_START) / (RIVER_X_END - RIVER_X_START) * (RIVER_COLS - 1);
+
+  function riverProximity(y) {
+    return Math.exp(-Math.pow((y - RIVER_SURFACE_Y) / 130, 2));
+  }
+
+  function disturbRiver(x, force, radius = 3) {
+    const centre = riverColumnAt(x);
+    const span = Math.ceil(radius * 2.6);
+    const from = Math.max(0, Math.floor(centre - span));
+    const to = Math.min(RIVER_COLS - 1, Math.ceil(centre + span));
+    for (let i = from; i <= to; i += 1) {
+      river.velocities[i] += force * Math.exp(-Math.pow((i - centre) / radius, 2));
+    }
+  }
+
+  function stepRiverWater(substeps) {
+    const { heights, velocities } = river;
+    for (let step = 0; step < substeps; step += 1) {
+      for (let i = 0; i < RIVER_COLS; i += 1) {
+        const left = heights[i > 0 ? i - 1 : i];
+        const right = heights[i < RIVER_COLS - 1 ? i + 1 : i];
+        velocities[i] += ((left + right) * 0.5 - heights[i]) * 0.3;
+        velocities[i] *= 0.982;
+      }
+      for (let i = 0; i < RIVER_COLS; i += 1) {
+        const next = heights[i] + velocities[i];
+        heights[i] = Math.max(-RIVER_MAX_SWELL, Math.min(RIVER_MAX_SWELL, next));
+      }
+    }
+  }
+
+  function riverFieldAt(x) {
+    const { heights } = river;
+    const pos = Math.max(0, Math.min(RIVER_COLS - 1.001, riverColumnAt(x)));
+    const index = Math.floor(pos);
+    const t = pos - index;
+    return heights[index] * (1 - t) + heights[index + 1] * t;
   }
 
   function riverFrame() {
     if (!river.running) return;
-    const now = performance.now();
-    const seconds = now / 1000;
+    const seconds = performance.now() / 1000;
 
-    river.pointerX += (river.targetX - river.pointerX) * 0.16;
-    river.pointerY += (river.targetY - river.pointerY) * 0.16;
-    river.ripples = river.ripples.filter((ripple) => now - ripple.start < 2400);
+    river.pointerX += (river.targetX - river.pointerX) * 0.2;
+    river.pointerY += (river.targetY - river.pointerY) * 0.2;
+    stepRiverWater(3);
 
     riverStreams.forEach((stream) => {
-      const nearCursor = Math.exp(-Math.pow((stream.base - river.pointerY) / 150, 2));
+      const nearCursor = Math.exp(-Math.pow((stream.base - river.pointerY) / 140, 2));
+      const deepLayer = stream.depth >= 0.85;
       const points = [];
       for (let x = RIVER_X_START; x <= RIVER_X_END; x += RIVER_STEP) {
         let y = stream.base
@@ -2286,18 +2327,13 @@
           + Math.sin(x / (stream.wavelength * 0.53) + seconds * stream.speed * 1.7 + stream.phase * 2.3) * stream.amp * 0.4;
 
         const dx = x - river.pointerX;
-        const spread = dx / 95;
-        const press = (1 - 2 * spread * spread) * Math.exp(-spread * spread);
-        y += press * nearCursor * 13 * stream.depth;
+        const spread = dx / 80;
+        y += (1 - 2 * spread * spread) * Math.exp(-spread * spread) * nearCursor * 7 * stream.depth;
 
-        river.ripples.forEach((ripple) => {
-          const age = (now - ripple.start) / 1000;
-          const radius = age * 230;
-          const distance = Math.abs(x - ripple.x);
-          const band = Math.exp(-Math.pow((distance - radius) / 36, 2));
-          const decay = Math.exp(-age * 1.9) * ripple.strength;
-          y += Math.sin((distance - radius) / 11) * band * decay * 9 * stream.depth;
-        });
+        const field = deepLayer
+          ? riverFieldAt(x)
+          : (riverFieldAt(x - 16) + riverFieldAt(x) + riverFieldAt(x + 16)) / 3;
+        y += field * stream.depth;
 
         points.push({ x, y });
       }
@@ -2326,7 +2362,10 @@
     river.running = false;
     if (river.rafId) cancelAnimationFrame(river.rafId);
     river.rafId = 0;
-    river.ripples = [];
+    river.heights.fill(0);
+    river.velocities.fill(0);
+    river.lastPointerX = Number.NaN;
+    river.lastPointerY = Number.NaN;
     river.targetX = 400;
     river.targetY = -600;
     river.pointerX = 400;
@@ -2340,12 +2379,28 @@
       if (!point) return;
       river.targetX = point.x;
       river.targetY = point.y;
+
       const now = performance.now();
-      const moved = Math.abs(point.x - river.lastRippleX);
-      const nearWater = point.y > 690;
-      if (nearWater && (!Number.isFinite(river.lastRippleX) || (moved > 26 && now - river.lastRippleAt > 110))) {
-        spawnRipple(point.x, Math.min(1, 0.4 + moved / 130), now);
+      if (Number.isFinite(river.lastPointerX)) {
+        const elapsed = Math.max(8, now - river.lastPointerAt);
+        const deltaX = point.x - river.lastPointerX;
+        const deltaY = point.y - river.lastPointerY;
+        const speed = Math.hypot(deltaX, deltaY) / elapsed * 16;
+        const proximity = riverProximity(point.y);
+        if (proximity > 0.02 && speed > 0.35) {
+          const force = Math.min(3.2, 0.4 + speed * 0.5) * proximity;
+          disturbRiver(point.x, force);
+          if (Math.abs(deltaX) > 6) {
+            disturbRiver(point.x - Math.sign(deltaX) * 34, -force * 0.45, 2.4);
+          }
+          if (Math.abs(deltaX) > 42) {
+            disturbRiver(point.x - deltaX / 2, force * 0.7);
+          }
+        }
       }
+      river.lastPointerX = point.x;
+      river.lastPointerY = point.y;
+      river.lastPointerAt = now;
     }, { passive: true });
 
     welcomePane.addEventListener("pointerdown", (event) => {
@@ -2354,12 +2409,17 @@
       if (!point) return;
       river.targetX = point.x;
       river.targetY = point.y;
-      spawnRipple(point.x, 1.3, performance.now());
+      const proximity = Math.max(riverProximity(point.y), 0.35);
+      disturbRiver(point.x, 5 * proximity, 2.2);
+      disturbRiver(point.x - 52, -1.5 * proximity, 2);
+      disturbRiver(point.x + 52, -1.5 * proximity, 2);
     }, { passive: true });
 
     welcomePane.addEventListener("pointerleave", () => {
       river.targetX = 400;
       river.targetY = -600;
+      river.lastPointerX = Number.NaN;
+      river.lastPointerY = Number.NaN;
     }, { passive: true });
   }
 
