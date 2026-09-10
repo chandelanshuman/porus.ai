@@ -382,34 +382,8 @@ body.auth-starflight .aurora {
 
 .brand-lockup {
   display: block;
-  width: 128px;
+  width: 220px;
   height: auto;
-}
-
-.brand-lockup .crown-rays {
-  stroke: var(--ink);
-}
-
-.brand-lockup .crown-band {
-  stroke: var(--gold);
-  opacity: 0.85;
-}
-
-.brand-lockup .crown-pearls {
-  fill: var(--gold);
-}
-
-.brand-lockup .brand-word {
-  fill: var(--ink);
-  font-family: "Manrope", "Noto Sans", sans-serif;
-  font-size: 32px;
-  font-weight: 600;
-  letter-spacing: -0.8px;
-}
-
-.brand-lockup .brand-ai {
-  fill: var(--gold);
-  font-size: 23px;
 }
 
 .wordmark {
@@ -1879,7 +1853,7 @@ body.auth-starflight .aurora {
 }
 
 .footer-intro .brand-lockup {
-  width: 144px;
+  width: 240px;
 }
 
 .footer-statement {
@@ -2058,7 +2032,7 @@ body.auth-starflight .aurora {
   }
 
   .brand-lockup {
-    width: 116px;
+    width: 178px;
   }
 
   .menu-toggle {
