@@ -5,6 +5,7 @@ import prettier from "eslint-config-prettier";
 export default [
   js.configs.recommended,
   {
+    files: ["src/**/*.{js,ts}"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",

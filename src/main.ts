@@ -1048,7 +1048,8 @@
     pointerY: 0,
     pointerTargetX: 0,
     pointerTargetY: 0,
-    convergence: null
+    convergence: null,
+    manualWarp: null
   };
 
   const STAR_CONVERGENCE_DURATION = 920;
@@ -1142,6 +1143,23 @@
 
   window.addEventListener("porus:stars-converge", beginStarConvergence);
 
+  function beginManualWarp(event) {
+    const detail = event.detail || {};
+    const duration = Number(detail.duration) || 1200;
+    if (reduceMotion || !starCanvas || !starState.stars.length) {
+      window.dispatchEvent(new CustomEvent("porus:enter-warp-done", { detail: { id: detail.id } }));
+      return;
+    }
+    starState.manualWarp = { startedAt: performance.now(), duration };
+    requestFrame();
+    window.setTimeout(() => {
+      starState.manualWarp = null;
+      window.dispatchEvent(new CustomEvent("porus:enter-warp-done", { detail: { id: detail.id } }));
+    }, duration);
+  }
+
+  window.addEventListener("porus:enter-warp", beginManualWarp);
+
   if (finePointerQuery.matches) {
     window.addEventListener("pointermove", (event) => {
       if (reduceMotion || starState.convergence) return;
@@ -1186,6 +1204,23 @@
 
   function warpAt(scrollY) {
     if (reduceMotion) return { amount: 0, direction: 1 };
+
+    if (starState.manualWarp) {
+      const { startedAt, duration } = starState.manualWarp;
+      const elapsed = performance.now() - startedAt;
+      const rampUp = Math.min(duration * 0.3, 900);
+      const rampDown = Math.min(duration * 0.22, 700);
+      const holdEnd = duration - rampDown;
+      let amount;
+      if (elapsed <= rampUp) {
+        amount = smoothstep(elapsed / rampUp);
+      } else if (elapsed >= holdEnd) {
+        amount = 1 - smoothstep((elapsed - holdEnd) / rampDown);
+      } else {
+        amount = 1;
+      }
+      return { amount, direction: 1 };
+    }
 
     if (scrollY >= starState.historyStart && scrollY <= starState.historyEnd) {
       const progress = smoothstep((scrollY - starState.historyStart) / (starState.historyEnd - starState.historyStart));
@@ -1449,7 +1484,7 @@
       source.connect(cinemaState.analyser);
       cinemaState.connected.add(audio);
       if (cinemaState.audioContext.state === "suspended") cinemaState.audioContext.resume();
-    } catch (error) {
+    } catch {
       cinemaState.analyser = null;
       cinemaState.frequencyData = null;
     }
@@ -1499,7 +1534,7 @@
       cinemaState.playing = true;
       updateCinemaButton();
       requestFrame();
-    } catch (error) {
+    } catch {
       cinemaState.playing = false;
       updateCinemaButton();
     }
@@ -1818,7 +1853,7 @@
       player.samples = samples.map((sample) => sample / maximum);
       player.dirty = true;
       requestFrame();
-    } catch (error) {
+    } catch {
       player.samples = player.samples.length ? player.samples : makeFallbackSamples(player.seed);
       player.dirty = true;
     }
@@ -1887,7 +1922,7 @@
       if (player.audio.ended) player.audio.currentTime = 0;
       try {
         await player.audio.play();
-      } catch (error) {
+      } catch {
         if (player.status) player.status.textContent = "Playback unavailable";
       }
       updatePlayerState(player);
@@ -1976,7 +2011,7 @@
       starState.pointerY += (starState.pointerTargetY - starState.pointerY) * 0.045;
     }
 
-    const starFrameInterval = scrolling || starState.convergence || starPointerMoving ? 15 : 30;
+    const starFrameInterval = scrolling || starState.convergence || starState.manualWarp || starPointerMoving ? 15 : 30;
     if (now - lastStarFrame >= starFrameInterval || reduceMotion) {
       paintStars(now, cachedScrollY);
       lastStarFrame = now;
@@ -2181,6 +2216,193 @@
   let sceneListener = null;
   let opening = false;
   let openingId = 0;
+
+  const warpEl = portal.querySelector("[data-auth-warp]");
+  const warpTextEl = portal.querySelector("[data-auth-warp-text]");
+  const warpLogoEl = portal.querySelector("[data-auth-warp-logo]");
+
+  // Pace of the letter-dissolve transition — must stay in step with the CSS
+  // transition duration on .auth-warp-letter.
+  const LETTER_STAGGER = 20;
+  const LETTER_MORPH_DURATION = 580;
+  const LOGO_MORPH_DURATION = 1000;
+
+  // Unhurried pauses so each stage is legible before the next begins.
+  // These, plus the durations above, are tuned so the full sequence lands
+  // at ~8s (see enterStudio's totalDuration).
+  const READ_ENGLISH_MS = 1650;
+  const READ_HINDI_MS = 1450;
+  const GLOW_ADMIRE_MS = 1340;
+
+  function waveDuration(count, stagger = LETTER_STAGGER, duration = LETTER_MORPH_DURATION) {
+    return Math.max(0, count - 1) * stagger + duration;
+  }
+
+  function splitGraphemes(text) {
+    if (typeof Intl !== "undefined" && typeof Intl.Segmenter === "function") {
+      const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+      return Array.from(segmenter.segment(text), (entry) => entry.segment);
+    }
+    return Array.from(text);
+  }
+
+  function randomWarpOffset() {
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 18 + Math.random() * 34;
+    return {
+      dx: Math.cos(angle) * distance,
+      dy: Math.sin(angle) * distance,
+      rot: (Math.random() - 0.5) * 70
+    };
+  }
+
+  function scatterLetter(el) {
+    const { dx, dy, rot } = randomWarpOffset();
+    el.style.setProperty("--dx", `${dx.toFixed(1)}px`);
+    el.style.setProperty("--dy", `${dy.toFixed(1)}px`);
+    el.style.setProperty("--rot", `${rot.toFixed(1)}deg`);
+  }
+
+  function setWarpOrigin(el) {
+    let x = window.innerWidth / 2;
+    let y = window.innerHeight / 2;
+    if (el && typeof el.getBoundingClientRect === "function") {
+      const rect = el.getBoundingClientRect();
+      if (rect.width && rect.height) {
+        x = rect.left + rect.width / 2;
+        y = rect.top + rect.height / 2;
+      }
+    }
+    portal.style.setProperty("--wx", `${x}px`);
+    portal.style.setProperty("--wy", `${y}px`);
+  }
+
+  let warpRequestId = 0;
+
+  function beginEnterWarp(duration, onDone) {
+    warpRequestId += 1;
+    const id = warpRequestId;
+    document.body.classList.add("auth-starflight");
+
+    const onWarpDone = (event) => {
+      if (event.detail?.id !== id) return;
+      window.removeEventListener("porus:enter-warp-done", onWarpDone);
+      document.body.classList.remove("auth-starflight");
+      onDone();
+    };
+    window.addEventListener("porus:enter-warp-done", onWarpDone);
+    window.dispatchEvent(new CustomEvent("porus:enter-warp", { detail: { id, duration } }));
+  }
+
+  const WARP_GREETING_EN = "Welcome to the divine.";
+  const WARP_GREETING_HI = "दिव्य में आपका स्वागत है।";
+
+  let currentWarpLetters = [];
+
+  // Builds one <span> per letter (grouped into word wrappers so words don't
+  // break mid-word across lines), each parked at its own random scatter
+  // offset — the raw material for the dissolve/form effect below.
+  function buildWarpLetters(text) {
+    if (!warpTextEl) return [];
+    warpTextEl.textContent = "";
+    const words = text.split(" ");
+    const letters = [];
+    words.forEach((word, wordIndex) => {
+      const wordEl = document.createElement("span");
+      wordEl.className = "auth-warp-word";
+      splitGraphemes(word).forEach((grapheme) => {
+        const letterEl = document.createElement("span");
+        letterEl.className = "auth-warp-letter";
+        letterEl.textContent = grapheme;
+        scatterLetter(letterEl);
+        wordEl.appendChild(letterEl);
+        letters.push(letterEl);
+      });
+      warpTextEl.appendChild(wordEl);
+      if (wordIndex < words.length - 1) warpTextEl.appendChild(document.createTextNode(" "));
+    });
+    return letters;
+  }
+
+  // Reveals letters in a left-to-right ripple, each converging from its own
+  // scattered offset into place — the sentence forming.
+  function formLetters(letters) {
+    if (!letters.length) return;
+    requestAnimationFrame(() => {
+      letters.forEach((el, index) => {
+        el.style.setProperty("--morph-delay", `${index * LETTER_STAGGER}ms`);
+        el.classList.add("is-shown");
+      });
+    });
+  }
+
+  // Breaks the given letters apart: each re-scatters to a fresh random offset
+  // and fades/blurs away in a left-to-right ripple, then calls back once
+  // every letter has fully cleared the transition.
+  function dissolveLetters(letters, onDone) {
+    if (!letters.length) {
+      onDone();
+      return;
+    }
+    letters.forEach((el, index) => {
+      scatterLetter(el);
+      el.style.setProperty("--morph-delay", `${index * LETTER_STAGGER}ms`);
+      el.classList.remove("is-shown");
+    });
+    window.setTimeout(onDone, waveDuration(letters.length) + 60);
+  }
+
+  // The English sentence breaks apart, then the Hindi sentence forms from
+  // scratch — a dissolve-and-reassemble rather than a per-word swap, since
+  // the two sentences don't share a word-for-word (or letter-for-letter)
+  // correspondence.
+  function dissolveTextTo(nextText, lang) {
+    dissolveLetters(currentWarpLetters, () => {
+      if (warpTextEl) warpTextEl.lang = lang;
+      currentWarpLetters = buildWarpLetters(nextText);
+      formLetters(currentWarpLetters);
+    });
+  }
+
+  // Same dissolve, but what forms afterwards is the logo rather than more text.
+  function dissolveTextToLogo() {
+    dissolveLetters(currentWarpLetters, () => {
+      currentWarpLetters = [];
+      if (!warpLogoEl) return;
+      requestAnimationFrame(() => warpLogoEl.classList.add("is-shown"));
+      window.setTimeout(() => warpLogoEl.classList.add("is-lit"), LOGO_MORPH_DURATION * 0.6);
+    });
+  }
+
+  function enterStudio(fromEl) {
+    if (warpLogoEl) warpLogoEl.classList.remove("is-shown", "is-lit");
+    let englishDuration = 0;
+    if (warpTextEl) {
+      warpTextEl.lang = "en";
+      currentWarpLetters = buildWarpLetters(WARP_GREETING_EN);
+      formLetters(currentWarpLetters);
+      englishDuration = waveDuration(currentWarpLetters.length);
+    }
+    if (reduceMotion || !warpEl) {
+      window.location.href = "/app.html";
+      return;
+    }
+    setWarpOrigin(fromEl);
+    portal.classList.add("is-entering");
+
+    const hindiLetterCount = splitGraphemes(WARP_GREETING_HI.replace(/ /g, "")).length;
+    const swapAt = englishDuration + READ_ENGLISH_MS;
+    const hindiDuration = waveDuration(hindiLetterCount);
+    const logoAt = swapAt + hindiDuration + READ_HINDI_MS;
+    const logoExitDuration = waveDuration(hindiLetterCount) + 60;
+    const totalDuration = logoAt + logoExitDuration + LOGO_MORPH_DURATION + GLOW_ADMIRE_MS;
+
+    window.setTimeout(() => dissolveTextTo(WARP_GREETING_HI, "hi"), swapAt);
+    window.setTimeout(dissolveTextToLogo, logoAt);
+    beginEnterWarp(totalDuration, () => {
+      window.location.href = "/app.html";
+    });
+  }
 
   function setAuroraOrigin(el) {
     let x = window.innerWidth / 2;
@@ -2518,7 +2740,7 @@
     document.body.classList.remove("auth-active");
     stopRiver();
     if (lastOpener && typeof lastOpener.focus === "function") {
-      try { lastOpener.focus({ preventScroll: false }); } catch (_) { /* noop */ }
+      try { lastOpener.focus({ preventScroll: false }); } catch { /* noop */ }
     }
     // Allow reopening
     window.setTimeout(() => { finalized = false; }, 60);
@@ -2579,7 +2801,7 @@
     if (!portal.hasAttribute("hidden")) positionUnderline();
   }, { passive: true });
 
-  // Form submit handlers (stubbed — ready for backend/SSO wiring)
+  // Form submit handlers (mock session — ready for real backend/SSO wiring)
   Object.entries(forms).forEach(([mode, form]) => {
     if (!form) return;
     form.addEventListener("submit", (event) => {
@@ -2587,13 +2809,20 @@
       const data = Object.fromEntries(new FormData(form).entries());
       const submit = form.querySelector(".auth-submit");
       if (submit) {
-        const original = submit.textContent;
         submit.disabled = true;
         submit.textContent = mode === "signin" ? "Signing in…" : "Creating account…";
         window.setTimeout(() => {
-          submit.disabled = false;
-          submit.textContent = original;
           console.info(`[porus.auth] ${mode} payload`, data);
+          try {
+            localStorage.setItem("porus:session", JSON.stringify({
+              name: data.name || "",
+              email: data.email || "",
+              mode
+            }));
+          } catch {
+            /* storage unavailable — proceed without a persisted session */
+          }
+          enterStudio(submit);
         }, 900);
       }
     });

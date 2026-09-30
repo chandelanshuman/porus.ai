@@ -25,7 +25,7 @@ describe("porus.ai bundle contract", () => {
   });
 
   it("main.js wires the auth portal open/close and tabs", () => {
-    const js = readFileSync(resolve(root, "src/main.js"), "utf8");
+    const js = readFileSync(resolve(root, "src/main.ts"), "utf8");
     expect(js).toContain("data-auth-portal");
     expect(js).toContain("openPortal");
     expect(js).toContain("switchTab");

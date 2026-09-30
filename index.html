@@ -21,7 +21,7 @@
   <link rel="preload" href="/assets/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/assets/newsreader-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/src/styles.css">
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/main.ts"></script>
 
   <script type="application/ld+json">
   {
@@ -557,6 +557,13 @@
 
         <p class="auth-fine">Approval-first access. Human authority throughout.</p>
       </section>
+
+      <div class="auth-warp" data-auth-warp aria-hidden="true">
+        <p class="auth-warp-text" data-auth-warp-text lang="en"></p>
+        <div class="auth-warp-logo auth-warp-morph" data-auth-warp-logo>
+          <img src="/logo.svg?v=7" alt="" width="320" height="78">
+        </div>
+      </div>
     </div>
   </div>
 </body>

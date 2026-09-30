@@ -1,4 +1,7 @@
 import { defineConfig } from "vite";
+import { fileURLToPath } from "url";
+
+const root = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   root: ".",
@@ -10,6 +13,10 @@ export default defineConfig({
     sourcemap: true,
     target: "es2020",
     rollupOptions: {
+      input: {
+        main: `${root}index.html`,
+        app: `${root}app.html`,
+      },
       output: {
         // stable hashed asset names for long-term caching
         entryFileNames: "assets/[name]-[hash].js",

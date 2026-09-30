@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#081522">
+  <meta name="color-scheme" content="dark light">
+  <meta name="robots" content="noindex">
+
+  <title>Creator | Porus.ai</title>
+  <link rel="canonical" href="https://porus.ai/app.html">
+  <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml">
+
+  <link rel="preload" href="/assets/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/newsreader-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/src/styles.css">
+  <script type="module" src="/src/app.ts"></script>
+</head>
+<body class="app-body">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="app-header">
+    <div class="shell app-header-inner">
+      <a class="brand" href="/" aria-label="Porus.ai home">
+        <img class="brand-lockup" src="/logo.svg?v=7" alt="Porus.ai" width="382" height="93">
+      </a>
+      <div class="app-header-actions">
+        <span class="app-plan-badge">Creator &middot; technical alpha</span>
+        <span class="app-user" data-app-user hidden></span>
+        <button class="button button--glass app-signout" type="button" data-app-signout>Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="app-main">
+    <div class="shell app-shell">
+      <section class="app-intro" data-drift>
+        <span class="app-eyebrow">Creator</span>
+        <h1>Upload English. Get Hindi back in the same voice.</h1>
+        <p class="app-lede">Fully automated, self-serve dubbing. No one reviews your clip by hand — every stage below runs on its own.</p>
+      </section>
+
+      <section class="upload-card" aria-labelledby="upload-title">
+        <h2 id="upload-title" class="sr-only">Start a new dub</h2>
+
+        <div class="dropzone" data-dropzone tabindex="0" role="button" aria-describedby="dropzone-hint">
+          <input class="dropzone-input sr-only" type="file" accept="video/*" data-file-input aria-label="Choose a video file to dub">
+          <svg class="dropzone-icon" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4">
+            <path d="M12 16V4m0 0 4 4m-4-4-4 4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4 16v2.5A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V16" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p class="dropzone-title">Drop a video, or click to choose one</p>
+          <p class="dropzone-hint" id="dropzone-hint">MP4 or MOV, English speech, up to a few minutes. Nothing leaves your browser in this preview.</p>
+          <p class="dropzone-file" data-dropzone-file hidden></p>
+        </div>
+
+        <div class="upload-fields">
+          <label class="upload-field">
+            <span>Source language</span>
+            <select disabled aria-disabled="true">
+              <option>English</option>
+            </select>
+          </label>
+          <label class="upload-field">
+            <span>Target language</span>
+            <select disabled aria-disabled="true">
+              <option>Hindi</option>
+            </select>
+          </label>
+          <label class="upload-field upload-field--wide">
+            <span>Glossary (optional)</span>
+            <input type="text" placeholder="Brand names or terms to keep untranslated" data-glossary-input>
+          </label>
+        </div>
+
+        <div class="upload-actions">
+          <button class="button button--light" type="button" data-start-dub disabled>Start dub</button>
+          <p class="upload-note">English &rarr; Hindi is the only route in this alpha. Voice cloning requires the speaker's live consent.</p>
+        </div>
+      </section>
+
+      <section class="job-section" aria-labelledby="jobs-title">
+        <h2 id="jobs-title" class="app-section-title">Your dubs</h2>
+        <div class="job-list" data-job-list></div>
+        <p class="job-empty" data-job-empty>Nothing yet. Upload a clip above to see the pipeline run.</p>
+      </section>
+    </div>
+  </main>
+
+  <template data-job-template>
+    <article class="job-card" data-job-card>
+      <header class="job-card-head">
+        <div class="job-card-title">
+          <p class="job-name" data-job-name></p>
+          <p class="job-meta" data-job-meta></p>
+        </div>
+        <span class="job-status" data-job-status></span>
+      </header>
+
+      <ol class="pipeline-steps" data-pipeline-steps>
+        <li class="pipeline-step" data-step="separate">
+          <span class="pipeline-step-dot" aria-hidden="true"></span>
+          <span class="pipeline-step-label">Separate</span>
+        </li>
+        <li class="pipeline-step" data-step="translate">
+          <span class="pipeline-step-dot" aria-hidden="true"></span>
+          <span class="pipeline-step-label">Translate</span>
+        </li>
+        <li class="pipeline-step" data-step="voice">
+          <span class="pipeline-step-dot" aria-hidden="true"></span>
+          <span class="pipeline-step-label">Fit and voice</span>
+        </li>
+        <li class="pipeline-step" data-step="check">
+          <span class="pipeline-step-dot" aria-hidden="true"></span>
+          <span class="pipeline-step-label">Check and deliver</span>
+        </li>
+      </ol>
+
+      <div class="job-report" data-job-report hidden>
+        <div class="job-report-grid">
+          <div class="job-metric">
+            <span class="job-metric-value" data-metric-backtranslation></span>
+            <span class="job-metric-label">Back-translation match</span>
+          </div>
+          <div class="job-metric">
+            <span class="job-metric-value" data-metric-rate></span>
+            <span class="job-metric-label">Speaking-rate fit</span>
+          </div>
+          <div class="job-metric">
+            <span class="job-metric-value" data-metric-hearback></span>
+            <span class="job-metric-label">Hear-back check</span>
+          </div>
+        </div>
+        <div class="job-report-actions">
+          <a class="button button--ink" data-download-dub download>Download dub</a>
+          <button class="button button--glass" type="button" data-download-subtitles>Download subtitles</button>
+        </div>
+        <p class="job-report-note">Demo output: a sample Hindi take, not a synthesis of your uploaded clip.</p>
+      </div>
+    </article>
+  </template>
+</body>
+</html>
