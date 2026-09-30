@@ -4,6 +4,7 @@
   const root = document.documentElement;
   const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
   const desktopQuery = window.matchMedia("(min-width: 821px)");
+  const finePointerQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
   let reduceMotion = motionQuery.matches;
   let pageVisible = !document.hidden;
   let rafId = 0;
@@ -14,10 +15,8 @@
   let scrollDirty = true;
   let cachedScrollY = window.scrollY;
   let lastScrollAt = Number.NEGATIVE_INFINITY;
-  let lastJourney = Number.NaN;
 
   root.classList.add("js");
-  if (!reduceMotion) root.classList.add("motion-enabled");
 
   const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
   const mix = (a, b, amount) => a + (b - a) * amount;
@@ -25,6 +24,7 @@
     const n = clamp(value);
     return n * n * (3 - 2 * n);
   };
+  const easeOut = (value) => 1 - Math.pow(1 - clamp(value), 3);
   const rgb = (color, alpha = 1) => `rgba(${color[0]},${color[1]},${color[2]},${alpha})`;
   const mixColor = (from, to, amount) => from.map((channel, index) => Math.round(mix(channel, to[index], amount)));
 
@@ -76,6 +76,121 @@
     return changed;
   }
 
+  /* Star rendering shared by every constellation */
+
+  const STAR_COLORS = {
+    white: [255, 255, 255],
+    frost: [224, 233, 255],
+    blue: [168, 196, 240],
+    gold: [236, 202, 128],
+    deepGold: [212, 175, 55]
+  };
+
+  // Cumulative tint weights: [upper bound, colour].
+  const FIELD_TINTS = [[0.42, STAR_COLORS.frost], [0.62, STAR_COLORS.white], [0.8, STAR_COLORS.blue], [1, STAR_COLORS.gold]];
+  const MARK_TINTS = [[0.36, STAR_COLORS.gold], [0.58, STAR_COLORS.deepGold], [0.84, STAR_COLORS.white], [1, STAR_COLORS.frost]];
+  const SOURCE_TINTS = [[0.42, STAR_COLORS.gold], [0.62, STAR_COLORS.deepGold], [1, STAR_COLORS.white]];
+  const RENDITION_TINTS = [[0.46, STAR_COLORS.frost], [0.76, STAR_COLORS.blue], [1, STAR_COLORS.white]];
+
+  function pickTint(random, tints) {
+    const value = random();
+    return (tints.find(([limit]) => value < limit) || tints[tints.length - 1])[1];
+  }
+
+  // Mostly faint specks, some medium stars, and a few bright ones that bloom.
+  function makeStar(random, tints) {
+    const tier = random();
+    const bright = tier > 0.975;
+    const medium = !bright && tier > 0.86;
+    return {
+      radius: bright ? 1.45 + random() * 0.95 : medium ? 0.8 + random() * 0.55 : 0.32 + random() * 0.5,
+      alpha: bright ? 0.82 + random() * 0.18 : medium ? 0.5 + random() * 0.34 : 0.2 + random() * 0.42,
+      color: pickTint(random, tints),
+      glow: bright ? 0.6 + random() * 0.3 : medium && random() < 0.3 ? 0.2 : 0,
+      glint: bright && random() < 0.45 ? 0.45 + random() * 0.3 : 0,
+      phase: random() * Math.PI * 2,
+      speed: 0.24 + random() * 0.9,
+      depth: 0.28 + random() * 0.72
+    };
+  }
+
+  const spriteCache = new Map();
+
+  function starSprite(kind, color) {
+    const key = `${kind}:${color.join(",")}`;
+    let sprite = spriteCache.get(key);
+    if (sprite) return sprite;
+    const size = 64;
+    const middle = size / 2;
+    sprite = document.createElement("canvas");
+    sprite.width = size;
+    sprite.height = size;
+    const context = sprite.getContext("2d");
+
+    if (kind === "glow") {
+      const gradient = context.createRadialGradient(middle, middle, 0, middle, middle, middle);
+      gradient.addColorStop(0, rgb(color, 0.9));
+      gradient.addColorStop(0.16, rgb(color, 0.34));
+      gradient.addColorStop(0.46, rgb(color, 0.07));
+      gradient.addColorStop(1, rgb(color, 0));
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, size, size);
+    } else {
+      // A four-point diffraction glint for the brightest stars.
+      [true, false].forEach((horizontal) => {
+        const gradient = horizontal
+          ? context.createLinearGradient(0, middle, size, middle)
+          : context.createLinearGradient(middle, 0, middle, size);
+        gradient.addColorStop(0, rgb(color, 0));
+        gradient.addColorStop(0.5, rgb(color, 0.85));
+        gradient.addColorStop(1, rgb(color, 0));
+        context.fillStyle = gradient;
+        if (horizontal) context.fillRect(0, middle - 0.5, size, 1);
+        else context.fillRect(middle - 0.5, 0, 1, size);
+      });
+    }
+
+    spriteCache.set(key, sprite);
+    return sprite;
+  }
+
+  function paintStar(context, x, y, star, alpha, color = star.color, glowColor = color) {
+    if (alpha <= 0.004) return;
+    if (star.glow) {
+      const size = star.radius * 11;
+      context.globalAlpha = Math.min(1, alpha * star.glow);
+      context.drawImage(starSprite("glow", glowColor), x - size / 2, y - size / 2, size, size);
+      if (star.glint) {
+        const reach = star.radius * 16;
+        context.globalAlpha = Math.min(1, alpha * star.glint);
+        context.drawImage(starSprite("glint", glowColor), x - reach / 2, y - reach / 2, reach, reach);
+      }
+      context.globalAlpha = 1;
+    }
+    context.fillStyle = rgb(color, Math.min(1, alpha));
+    context.beginPath();
+    context.arc(x, y, star.radius, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  // Trails for flying stars: gradients only where they are wide enough to show.
+  function paintTrail(context, fromX, fromY, toX, toY, star, alpha, width) {
+    if (star.radius < 0.8) {
+      context.strokeStyle = rgb(star.color, Math.min(0.6, alpha * 0.7));
+    } else {
+      const gradient = context.createLinearGradient(fromX, fromY, toX, toY);
+      gradient.addColorStop(0, rgb(star.color, 0));
+      gradient.addColorStop(1, rgb(star.color, Math.min(0.96, alpha)));
+      context.strokeStyle = gradient;
+    }
+    context.lineWidth = width;
+    context.lineCap = "round";
+    context.beginPath();
+    context.moveTo(fromX, fromY);
+    context.lineTo(toX, toY);
+    context.stroke();
+  }
+
   /* Navigation */
 
   const menuToggle = document.querySelector(".menu-toggle");
@@ -122,203 +237,12 @@
   const year = document.getElementById("year");
   if (year) year.textContent = String(new Date().getFullYear());
 
-  /* Horizontal human-history passage */
-
-  const historySection = document.querySelector("[data-horizontal]");
-  const historyTrack = document.querySelector("[data-horizontal-track]");
-  const historyProgress = document.querySelector("[data-history-progress]");
-  const historyState = {
-    enabled: false,
-    travel: 0,
-    scrollDistance: 1,
-    lastX: Number.NaN
-  };
-
-  function configureHistory() {
-    if (!historySection || !historyTrack) return;
-    const shouldEnhance = desktopQuery.matches && !reduceMotion && window.innerHeight > 560;
-    historyState.enabled = shouldEnhance;
-    historySection.classList.toggle("is-horizontal", shouldEnhance);
-
-    if (!shouldEnhance) {
-      historySection.style.removeProperty("height");
-      root.style.setProperty("--history-x", "0px");
-      historyState.lastX = 0;
-      return;
-    }
-
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    historyState.travel = Math.max(0, historyTrack.scrollWidth - viewportWidth);
-    historyState.scrollDistance = Math.max(viewportHeight * 3.1, historyState.travel + viewportHeight * 1.5);
-    historySection.style.height = `${Math.round(historyState.scrollDistance + viewportHeight)}px`;
-  }
-
-  function updateHistory() {
-    if (!historyState.enabled || !historySection || !historyTrack) return;
-    const rect = historySection.getBoundingClientRect();
-    const usable = Math.max(1, rect.height - window.innerHeight);
-    const progress = clamp(-rect.top / usable);
-    const x = -historyState.travel * progress;
-    if (!Number.isFinite(historyState.lastX) || Math.abs(x - historyState.lastX) > 0.15) {
-      root.style.setProperty("--history-x", `${x.toFixed(2)}px`);
-      historyState.lastX = x;
-    }
-  }
-
-  function updateMobileHistoryProgress() {
-    if (!historyTrack || !historyProgress) return;
-    const maximum = Math.max(1, historyTrack.scrollWidth - historyTrack.clientWidth);
-    const progress = clamp(historyTrack.scrollLeft / maximum);
-    historyProgress.style.transform = `scaleX(${progress.toFixed(4)})`;
-  }
-
-  if (historyTrack) {
-    let historyProgressFrame = 0;
-    historyTrack.addEventListener("scroll", () => {
-      if (historyProgressFrame) return;
-      historyProgressFrame = requestAnimationFrame(() => {
-        historyProgressFrame = 0;
-        updateMobileHistoryProgress();
-      });
-    }, { passive: true });
-  }
-
-  /* One-time editorial drift */
-
-  const driftItems = document.querySelectorAll("[data-drift]");
-  if (driftItems.length) {
-    if (reduceMotion || !("IntersectionObserver" in window)) {
-      driftItems.forEach((item) => item.classList.add("is-visible"));
-    } else {
-      const driftObserver = new IntersectionObserver((entries, observer) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          entry.target.classList.add("is-visible");
-          observer.unobserve(entry.target);
-        });
-      }, { threshold: 0.28, rootMargin: "0px 0px -8%" });
-      driftItems.forEach((item) => driftObserver.observe(item));
-    }
-  }
-
-  /* Pointer-responsive product suite */
-
-  const finePointerQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
-  const suiteRows = Array.from(document.querySelectorAll(".suite-row"));
-  const suitePointerProperties = [
-    "--suite-x",
-    "--suite-y",
-    "--suite-shift-x",
-    "--suite-shift-y",
-    "--suite-status-x",
-    "--suite-status-y"
-  ];
-  const suitePointerState = {
-    row: null,
-    rect: null,
-    active: false,
-    currentX: 0.5,
-    currentY: 0.5,
-    targetX: 0.5,
-    targetY: 0.5
-  };
-
-  function targetSuitePointer(row, event) {
-    const rect = suitePointerState.rect || row.getBoundingClientRect();
-    suitePointerState.targetX = clamp((event.clientX - rect.left) / Math.max(1, rect.width));
-    suitePointerState.targetY = clamp((event.clientY - rect.top) / Math.max(1, rect.height));
-  }
-
-  function clearSuitePointerStyles(row) {
-    if (!row) return;
-    row.classList.remove("is-pointer-active");
-    suitePointerProperties.forEach((property) => row.style.removeProperty(property));
-  }
-
-  function resetSuitePointer() {
-    suitePointerState.active = false;
-    suitePointerState.targetX = 0.5;
-    suitePointerState.targetY = 0.5;
-    suitePointerState.rect = null;
-    suitePointerState.row?.classList.remove("is-pointer-active");
-  }
-
-  function updateSuitePointer() {
-    const row = suitePointerState.row;
-    if (!row) return;
-
-    const deltaX = suitePointerState.targetX - suitePointerState.currentX;
-    const deltaY = suitePointerState.targetY - suitePointerState.currentY;
-    if (suitePointerState.active && Math.abs(deltaX) < 0.0004 && Math.abs(deltaY) < 0.0004) return;
-
-    const response = suitePointerState.active ? 0.18 : 0.24;
-    suitePointerState.currentX += deltaX * response;
-    suitePointerState.currentY += deltaY * response;
-
-    const shiftX = (suitePointerState.currentX - 0.5) * 12;
-    const shiftY = (suitePointerState.currentY - 0.5) * 7;
-    row.style.setProperty("--suite-x", `${(suitePointerState.currentX * 100).toFixed(2)}%`);
-    row.style.setProperty("--suite-y", `${(suitePointerState.currentY * 100).toFixed(2)}%`);
-    row.style.setProperty("--suite-shift-x", `${shiftX.toFixed(2)}px`);
-    row.style.setProperty("--suite-shift-y", `${shiftY.toFixed(2)}px`);
-    row.style.setProperty("--suite-status-x", `${(-shiftX * 0.32).toFixed(2)}px`);
-    row.style.setProperty("--suite-status-y", `${(-shiftY * 0.32).toFixed(2)}px`);
-
-    const settled = Math.abs(suitePointerState.currentX - 0.5) < 0.002 && Math.abs(suitePointerState.currentY - 0.5) < 0.002;
-    if (!suitePointerState.active && settled) {
-      clearSuitePointerStyles(row);
-      suitePointerState.row = null;
-      suitePointerState.currentX = 0.5;
-      suitePointerState.currentY = 0.5;
-    }
-  }
-
-  suiteRows.forEach((row) => {
-    row.addEventListener("pointerenter", (event) => {
-      if (reduceMotion || !finePointerQuery.matches || event.pointerType === "touch") return;
-      if (suitePointerState.row && suitePointerState.row !== row) {
-        clearSuitePointerStyles(suitePointerState.row);
-        suitePointerState.currentX = 0.5;
-        suitePointerState.currentY = 0.5;
-      }
-      suitePointerState.row = row;
-      suitePointerState.rect = row.getBoundingClientRect();
-      suitePointerState.active = true;
-      targetSuitePointer(row, event);
-      row.classList.add("is-pointer-active");
-      requestFrame();
-    });
-
-    row.addEventListener("pointermove", (event) => {
-      if (!suitePointerState.active || suitePointerState.row !== row) return;
-      targetSuitePointer(row, event);
-    });
-
-    row.addEventListener("pointerleave", resetSuitePointer);
-    row.addEventListener("pointercancel", resetSuitePointer);
-
-    row.addEventListener("pointerdown", (event) => {
-      if (reduceMotion || event.pointerType === "mouse") return;
-      if (suitePointerState.row && suitePointerState.row !== row) clearSuitePointerStyles(suitePointerState.row);
-      suitePointerState.row = row;
-      suitePointerState.rect = row.getBoundingClientRect();
-      suitePointerState.active = true;
-      targetSuitePointer(row, event);
-      row.classList.add("is-pointer-active");
-      requestFrame();
-    }, { passive: true });
-
-    row.addEventListener("pointerup", (event) => {
-      if (event.pointerType === "mouse") return;
-      window.setTimeout(resetSuitePointer, 180);
-    }, { passive: true });
-  });
-
-  /* Living expression field */
+  /* Hero constellation: the Porus mark assembles from stars */
 
   const expressionField = document.querySelector("[data-expression-field]");
   const expressionCanvas = expressionField?.querySelector("[data-expression-canvas]");
+  const heroSection = expressionField?.closest(".hero");
+  const heroMarkSlot = heroSection?.querySelector("[data-hero-mark]");
 
   const DIVINE_GREETINGS = [
     { language: "English", text: "Welcome to the divine" },
@@ -391,16 +315,13 @@
     expressionTip.style.setProperty("--tip-y", `${clamp(y, 8, expressionState.height - 8).toFixed(1)}px`);
     expressionTip.classList.add("is-visible");
   }
+
   const expressionState = {
     context: null,
     width: 0,
     height: 0,
     dpr: 1,
     visible: true,
-    pointerX: 0,
-    pointerY: 0,
-    targetX: 0,
-    targetY: 0,
     cursorX: 0,
     cursorY: 0,
     cursorTargetX: 0,
@@ -408,95 +329,163 @@
     pointerActive: false,
     lastPointerAt: Number.NEGATIVE_INFINITY,
     motes: [],
+    mark: null,
+    slot: { x: 0, y: 0, width: 0, height: 0 },
+    heroHeight: 1,
+    assembledAt: performance.now(),
+    disperse: 0,
     flight: null,
     staticDrawn: false
   };
 
-  function cubicPoint(start, controlA, controlB, end, amount) {
-    const inverse = 1 - amount;
-    const a = inverse * inverse * inverse;
-    const b = 3 * inverse * inverse * amount;
-    const c = 3 * inverse * amount * amount;
-    const d = amount * amount * amount;
-    return {
-      x: start.x * a + controlA.x * b + controlB.x * c + end.x * d,
-      y: start.y * a + controlA.y * b + controlB.y * c + end.y * d
-    };
+  // If the logo cannot be read, the stars still gather into a voice line.
+  function fallbackMark() {
+    const random = seeded(4152026);
+    const count = 2400;
+    const points = new Float32Array(count * 2);
+    for (let index = 0; index < count; index += 1) {
+      const u = random();
+      points[index * 2] = u;
+      points[index * 2 + 1] = 0.5 + Math.sin(u * Math.PI * 5) * 0.32 * Math.sin(u * Math.PI) + (random() - 0.5) * 0.06;
+    }
+    return { points, aspect: 3 };
   }
 
-  function cubicTangent(start, controlA, controlB, end, amount) {
-    const inverse = 1 - amount;
-    return {
-      x: 3 * inverse * inverse * (controlA.x - start.x)
-        + 6 * inverse * amount * (controlB.x - controlA.x)
-        + 3 * amount * amount * (end.x - controlB.x),
-      y: 3 * inverse * inverse * (controlA.y - start.y)
-        + 6 * inverse * amount * (controlB.y - controlA.y)
-        + 3 * amount * amount * (end.y - controlB.y)
+  // Samples the Brahmi mark straight from logo.svg: the mark is the first group,
+  // and its letter outlines carry a translate() while the divider bar does not.
+  async function loadHeroMark() {
+    try {
+      const response = await fetch("/logo.svg?v=7");
+      if (!response.ok) throw new Error("Logo unavailable");
+      const svg = new DOMParser().parseFromString(await response.text(), "image/svg+xml");
+      const viewBox = (svg.documentElement.getAttribute("viewBox") || "").split(/[\s,]+/).map(Number);
+      const outlines = Array.from(svg.querySelector("g")?.querySelectorAll("path[transform]") || []);
+      if (viewBox.length !== 4 || !outlines.length) throw new Error("Mark missing");
+
+      const scale = 4;
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewBox[2] * scale);
+      canvas.height = Math.ceil(viewBox[3] * scale);
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      context.fillStyle = "#fff";
+      outlines.forEach((outline) => {
+        const offset = /translate\(\s*([-\d.]+)[\s,]+([-\d.]+)\s*\)/.exec(outline.getAttribute("transform")) || [];
+        const x = Number(offset[1]) || 0;
+        const y = Number(offset[2]) || 0;
+        context.setTransform(scale, 0, 0, scale, (x - viewBox[0]) * scale, (y - viewBox[1]) * scale);
+        context.fill(new Path2D(outline.getAttribute("d")));
+      });
+
+      const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
+      const ink = [];
+      let minX = width;
+      let minY = height;
+      let maxX = 0;
+      let maxY = 0;
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          if (data[(y * width + x) * 4 + 3] < 128) continue;
+          ink.push(x, y);
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+        }
+      }
+      if (!ink.length) throw new Error("Mark empty");
+
+      const spanX = Math.max(1, maxX - minX);
+      const spanY = Math.max(1, maxY - minY);
+      const points = new Float32Array(ink.length);
+      for (let index = 0; index < ink.length; index += 2) {
+        points[index] = (ink[index] - minX) / spanX;
+        points[index + 1] = (ink[index + 1] - minY) / spanY;
+      }
+      expressionState.mark = { points, aspect: spanX / spanY };
+    } catch {
+      expressionState.mark = fallbackMark();
+    }
+    expressionState.motes = [];
+    expressionState.assembledAt = performance.now();
+    markLayoutDirty();
+  }
+
+  function measureHeroMark() {
+    if (!heroMarkSlot || !expressionCanvas) return;
+    const canvasRect = expressionCanvas.getBoundingClientRect();
+    const slotRect = heroMarkSlot.getBoundingClientRect();
+    const aspect = expressionState.mark?.aspect || 2.95;
+    let width = slotRect.width;
+    let height = width / aspect;
+    if (height > slotRect.height) {
+      height = slotRect.height;
+      width = height * aspect;
+    }
+    expressionState.slot = {
+      x: slotRect.left - canvasRect.left + (slotRect.width - width) / 2,
+      y: slotRect.top - canvasRect.top + (slotRect.height - height) / 2,
+      width,
+      height
     };
+    expressionState.heroHeight = Math.max(1, heroSection?.getBoundingClientRect().height || window.innerHeight);
   }
 
   function buildExpressionMotes() {
     if (!expressionCanvas) return;
-    const changed = sizeCanvas(expressionCanvas, expressionState);
-    if (!changed && expressionState.motes.length) return;
+    sizeCanvas(expressionCanvas, expressionState);
+    measureHeroMark();
+    expressionState.staticDrawn = false;
+    const mark = expressionState.mark;
+    if (!mark) return;
+    const count = desktopQuery.matches ? 1700 : 820;
+    if (expressionState.motes.length === count) return;
+
     const random = seeded(8252026);
-    const count = desktopQuery.matches
-      ? Math.max(190, Math.min(290, Math.round(expressionState.width * expressionState.height / 1150)))
-      : Math.max(96, Math.min(140, Math.round(expressionState.width * expressionState.height / 800)));
+    const inkCount = mark.points.length / 2;
     expressionState.motes = Array.from({ length: count }, (_, index) => {
-      const tint = random();
+      const pick = Math.floor(random() * inkCount) * 2;
+      const dust = random() < 0.12;
+      const angle = random() * Math.PI * 2;
+      const reach = dust ? 0.03 + random() * 0.09 : 0;
+      const star = makeStar(random, MARK_TINTS);
       return {
-        origin: random(),
-        lane: (random() - 0.5) * expressionState.height * 0.42,
-        phase: random() * Math.PI * 2,
-        speed: 0.55 + random() * 0.8,
-        depth: 0.3 + random() * 0.7,
-        length: 2.4 + random() * 8,
-        width: 0.6 + random() * 1.15,
-        alpha: 0.3 + random() * 0.6,
-        color: tint < 0.7 ? [199, 241, 229] : tint < 0.86 ? [245, 217, 168] : [188, 169, 244],
-        bright: index % 13 === 0,
+        ...star,
+        radius: star.radius * (dust ? 0.85 : 1.15),
+        alpha: dust ? star.alpha * 0.55 : Math.min(1, star.alpha * 1.5),
+        u: mark.points[pick] + (random() - 0.5) * 0.002 + Math.cos(angle) * reach / mark.aspect,
+        v: mark.points[pick + 1] + (random() - 0.5) * 0.006 + Math.sin(angle) * reach,
+        startX: random(),
+        startY: random(),
+        delay: random() * 900,
+        duration: 1300 + random() * 900,
         greeting: index % DIVINE_GREETINGS.length,
         cursorOffsetX: 0,
         cursorOffsetY: 0,
-        cursorReach: 0.17 + random() * 0.17,
-        cursorResponse: 0.035 + random() * 0.075,
-        cursorPolarity: random() < 0.76 ? 1 : -0.42,
-        cursorCurl: random() * 2 - 1
+        cursorReach: 0.05 + random() * 0.05,
+        cursorResponse: 0.04 + random() * 0.07,
+        cursorPolarity: random() < 0.8 ? 1 : -0.4,
+        cursorCurl: random() * 2 - 1,
+        lastX: 0,
+        lastY: 0
       };
     });
-    expressionState.cursorX = expressionState.width * 0.5;
-    expressionState.cursorY = expressionState.height * 0.5;
-    expressionState.cursorTargetX = expressionState.cursorX;
-    expressionState.cursorTargetY = expressionState.cursorY;
-    expressionState.staticDrawn = false;
   }
 
-  function murmurationPoint(mote, amount, seconds) {
-    const { width, height, pointerX, pointerY } = expressionState;
-    const start = { x: width * -0.01, y: height * 0.72 };
-    const controlA = {
-      x: width * (0.24 + pointerX * 0.035),
-      y: height * (0.0 + pointerY * 0.06)
-    };
-    const controlB = {
-      x: width * (0.71 + pointerX * 0.045),
-      y: height * (0.96 + pointerY * 0.075)
-    };
-    const end = { x: width * 1.01, y: height * 0.12 };
-    const point = cubicPoint(start, controlA, controlB, end, amount);
-    const tangent = cubicTangent(start, controlA, controlB, end, amount);
-    const tangentLength = Math.hypot(tangent.x, tangent.y) || 1;
-    const tangentX = tangent.x / tangentLength;
-    const tangentY = tangent.y / tangentLength;
-    const flockEnvelope = 0.26 + Math.pow(Math.sin(amount * Math.PI), 0.68) * 1.08;
-    const breathingLane = mote.lane * flockEnvelope * (0.76 + Math.sin(seconds * 0.28 + mote.phase) * 0.24);
-    const drift = Math.sin(seconds * (0.22 + mote.depth * 0.14) + mote.phase * 1.7) * 9 * mote.depth;
-    point.x += -tangentY * (breathingLane + drift);
-    point.y += tangentX * (breathingLane + drift);
+  // Scrolling away lets the mark go back into the sky.
+  function updateHeroDispersal(scrollY) {
+    expressionState.disperse = reduceMotion ? 0 : smoothstep(scrollY / (expressionState.heroHeight * 0.72));
+  }
 
-    return { ...point, tangentX, tangentY };
+  function motePoint(mote, now, lag = 0) {
+    const { slot, width, height, disperse } = expressionState;
+    const arrival = reduceMotion ? 1 : easeOut((now - lag - expressionState.assembledAt - mote.delay) / mote.duration);
+    const gather = arrival * (1 - disperse);
+    return {
+      x: mix(mote.startX * width, slot.x + mote.u * slot.width, gather),
+      y: mix(mote.startY * height, slot.y + mote.v * slot.height, gather),
+      arrival,
+      gather
+    };
   }
 
   function applyMoteCursor(point, mote) {
@@ -507,8 +496,8 @@
     const influence = expressionState.pointerActive
       ? Math.exp(-Math.pow(distance / reach, 2))
       : 0;
-    const radial = influence * 24 * mote.depth * mote.cursorPolarity;
-    const curl = influence * 15 * mote.depth * mote.cursorCurl;
+    const radial = influence * 12 * mote.depth * mote.cursorPolarity;
+    const curl = influence * 9 * mote.depth * mote.cursorCurl;
     const targetOffsetX = deltaX / distance * radial - deltaY / distance * curl;
     const targetOffsetY = deltaY / distance * radial + deltaX / distance * curl;
     mote.cursorOffsetX += (targetOffsetX - mote.cursorOffsetX) * mote.cursorResponse;
@@ -520,71 +509,69 @@
 
   function updateExpressionPointer() {
     if (!expressionField || reduceMotion) return false;
-    const pathDeltaX = expressionState.targetX - expressionState.pointerX;
-    const pathDeltaY = expressionState.targetY - expressionState.pointerY;
-    const cursorDeltaX = expressionState.cursorTargetX - expressionState.cursorX;
-    const cursorDeltaY = expressionState.cursorTargetY - expressionState.cursorY;
-    const moving = Math.abs(pathDeltaX) > 0.0004
-      || Math.abs(pathDeltaY) > 0.0004
-      || Math.abs(cursorDeltaX) > 0.08
-      || Math.abs(cursorDeltaY) > 0.08;
-    if (!moving) return false;
-    expressionState.pointerX += (expressionState.targetX - expressionState.pointerX) * 0.055;
-    expressionState.pointerY += (expressionState.targetY - expressionState.pointerY) * 0.055;
-    expressionState.cursorX += (expressionState.cursorTargetX - expressionState.cursorX) * 0.14;
-    expressionState.cursorY += (expressionState.cursorTargetY - expressionState.cursorY) * 0.14;
-    expressionField.style.setProperty("--field-shift-x", `${(expressionState.pointerX * 7).toFixed(2)}px`);
-    expressionField.style.setProperty("--field-shift-y", `${(expressionState.pointerY * 5).toFixed(2)}px`);
+    const deltaX = expressionState.cursorTargetX - expressionState.cursorX;
+    const deltaY = expressionState.cursorTargetY - expressionState.cursorY;
+    if (Math.abs(deltaX) <= 0.08 && Math.abs(deltaY) <= 0.08) return false;
+    expressionState.cursorX += deltaX * 0.14;
+    expressionState.cursorY += deltaY * 0.14;
     return true;
   }
 
   function paintExpressionField(now) {
-    const { context, width, height } = expressionState;
+    const { context, width, height, motes, slot } = expressionState;
     if (!context || !width || !height || !expressionState.visible) return;
     if (reduceMotion && expressionState.staticDrawn) return;
 
     const seconds = reduceMotion ? 3.8 : now / 1000;
     context.clearRect(0, 0, width, height);
-    if (expressionState.flight) {
+    if (expressionState.flight || !motes.length) {
       hideExpressionTip();
       return;
     }
     context.save();
     context.globalCompositeOperation = "lighter";
 
-    const glows = [
-      { amount: 0.34, radius: width * 0.22, color: [117, 229, 200], alpha: 0.105 },
-      { amount: 0.69, radius: width * 0.2, color: [112, 216, 237], alpha: 0.08 },
-      { amount: 0.52, radius: width * 0.15, color: [188, 169, 244], alpha: 0.055 }
-    ];
-    const guideMote = { lane: 0, phase: 0, depth: 0.5 };
-    glows.forEach((glow) => {
-      const point = murmurationPoint(guideMote, glow.amount, seconds);
-      const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, glow.radius);
-      gradient.addColorStop(0, rgb(glow.color, glow.alpha));
-      gradient.addColorStop(1, rgb(glow.color, 0));
-      context.fillStyle = gradient;
-      context.beginPath();
-      context.arc(point.x, point.y, glow.radius, 0, Math.PI * 2);
-      context.fill();
-    });
+    // A low halo so the mark reads as one lit constellation.
+    const presence = (reduceMotion ? 1 : easeOut((now - expressionState.assembledAt - 600) / 1800)) * (1 - expressionState.disperse);
+    if (presence > 0.01) {
+      const centreX = slot.x + slot.width / 2;
+      const centreY = slot.y + slot.height / 2;
+      const radius = slot.width * 0.62;
+      const halo = context.createRadialGradient(centreX, centreY, 0, centreX, centreY, radius);
+      halo.addColorStop(0, `rgba(212,175,55,${(0.09 * presence).toFixed(3)})`);
+      halo.addColorStop(1, "rgba(212,175,55,0)");
+      context.fillStyle = halo;
+      context.fillRect(centreX - radius, centreY - radius, radius * 2, radius * 2);
+    }
 
-    const hoverReach = 26;
+    const hoverReach = 22;
+    const hoverable = expressionState.pointerActive && !reduceMotion && expressionState.disperse < 0.15;
     let hoverMote = null;
     let hoverX = 0;
     let hoverY = 0;
     let hoverDistance = hoverReach;
 
-    expressionState.motes.forEach((mote) => {
-      const amount = (mote.origin + seconds * 0.0085 * mote.speed) % 1;
-      const point = applyMoteCursor(murmurationPoint(mote, amount, seconds), mote);
-      const edgeFade = Math.pow(Math.sin(amount * Math.PI), 0.38);
-      const shimmer = 0.72 + Math.sin(seconds * 0.7 + mote.phase) * 0.28;
-      const alpha = mote.alpha * edgeFade * shimmer;
-      const length = mote.length * (0.65 + mote.depth * 0.6);
+    motes.forEach((mote) => {
+      const home = motePoint(mote, now);
+      const homeX = home.x;
+      const homeY = home.y;
+      const point = applyMoteCursor(home, mote);
+      const twinkle = reduceMotion ? 0.9 : 0.8 + Math.sin(seconds * mote.speed + mote.phase) * 0.2;
+      const alpha = mote.alpha * twinkle * mix(0.3, 1, point.gather) * (1 - expressionState.disperse * 0.5);
 
-      if (expressionState.pointerActive && !reduceMotion && edgeFade > 0.2) {
-        const cursorDistance = Math.hypot(point.x - expressionState.cursorX, point.y - expressionState.cursorY);
+      if (!reduceMotion && point.arrival < 1) {
+        const tail = motePoint(mote, now, 60);
+        if (Math.hypot(point.x - tail.x, point.y - tail.y) > 1.5) {
+          paintTrail(context, tail.x, tail.y, point.x, point.y, mote, alpha * 0.6, mote.radius);
+        }
+      }
+
+      paintStar(context, point.x, point.y, mote, alpha);
+      mote.lastX = point.x;
+      mote.lastY = point.y;
+
+      if (hoverable && point.arrival > 0.98) {
+        const cursorDistance = Math.hypot(homeX - expressionState.cursorX, homeY - expressionState.cursorY);
         if (cursorDistance < hoverDistance) {
           hoverDistance = cursorDistance;
           hoverMote = mote;
@@ -592,24 +579,6 @@
           hoverY = point.y;
         }
       }
-
-      if (mote.bright) {
-        const glow = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, 9 + mote.depth * 7);
-        glow.addColorStop(0, rgb(mote.color, alpha * 0.34));
-        glow.addColorStop(1, rgb(mote.color, 0));
-        context.fillStyle = glow;
-        context.beginPath();
-        context.arc(point.x, point.y, 9 + mote.depth * 7, 0, Math.PI * 2);
-        context.fill();
-      }
-
-      context.strokeStyle = rgb(mote.color, alpha);
-      context.lineWidth = mote.width;
-      context.lineCap = "round";
-      context.beginPath();
-      context.moveTo(point.x - point.tangentX * length * 0.5, point.y - point.tangentY * length * 0.5);
-      context.lineTo(point.x + point.tangentX * length * 0.5, point.y + point.tangentY * length * 0.5);
-      context.stroke();
     });
 
     if (hoverMote) {
@@ -640,8 +609,6 @@
 
   function targetExpressionPointer(event) {
     const rect = expressionCanvas.getBoundingClientRect();
-    expressionState.targetX = clamp((event.clientX / window.innerWidth - 0.5) * 2, -1, 1);
-    expressionState.targetY = clamp((event.clientY / window.innerHeight - 0.5) * 2, -1, 1);
     expressionState.cursorTargetX = event.clientX - rect.left;
     expressionState.cursorTargetY = event.clientY - rect.top;
     expressionState.pointerActive = true;
@@ -656,15 +623,12 @@
     }, { passive: true });
 
     document.documentElement.addEventListener("pointerleave", () => {
-      expressionState.targetX = 0;
-      expressionState.targetY = 0;
       expressionState.pointerActive = false;
       hideExpressionTip();
       requestFrame();
     }, { passive: true });
   }
 
-  const heroSection = expressionField?.closest(".hero");
   if (heroSection && expressionCanvas) {
     let expressionTouchId = null;
     heroSection.addEventListener("pointerdown", (event) => {
@@ -680,8 +644,6 @@
       if (event.pointerId !== expressionTouchId) return;
       expressionTouchId = null;
       expressionState.pointerActive = false;
-      expressionState.targetX = 0;
-      expressionState.targetY = 0;
       requestFrame();
     };
     heroSection.addEventListener("pointerup", releaseExpressionTouch, { passive: true });
@@ -696,15 +658,12 @@
       || !Number.isFinite(targetX) || !Number.isFinite(targetY)) return;
 
     const now = performance.now();
-    const seconds = now / 1000;
     const rect = expressionCanvas.getBoundingClientRect();
     const particles = expressionState.motes.map((mote, index) => {
-      const amount = (mote.origin + seconds * 0.0085 * mote.speed) % 1;
-      const point = applyMoteCursor(murmurationPoint(mote, amount, seconds), mote);
       const angle = index * 2.399963;
       const arrivalRadius = 3 + (index * 11) % 18;
-      const startX = rect.left + point.x;
-      const startY = rect.top + point.y;
+      const startX = rect.left + mote.lastX;
+      const startY = rect.top + mote.lastY;
       const distance = Math.hypot(targetX - startX, targetY - startY);
       const normalX = -(targetY - startY) / (distance || 1);
       const normalY = (targetX - startX) / (distance || 1);
@@ -761,43 +720,39 @@
       const tail = curvePoint(previousEased);
       const arrival = smoothstep((progress - 0.78) / 0.22);
       const alpha = particle.alpha * mix(0.72, 1.45, progress) * (1 - arrival * 0.94);
-      const trail = Math.hypot(point.x - tail.x, point.y - tail.y);
 
-      if (trail > 0.8) {
-        const gradient = context.createLinearGradient(tail.x, tail.y, point.x, point.y);
-        gradient.addColorStop(0, rgb(particle.color, 0));
-        gradient.addColorStop(1, rgb(particle.color, Math.min(0.94, alpha)));
-        context.strokeStyle = gradient;
-        context.lineWidth = particle.width * mix(0.8, 1.35, progress);
-        context.lineCap = "round";
-        context.beginPath();
-        context.moveTo(tail.x, tail.y);
-        context.lineTo(point.x, point.y);
-        context.stroke();
+      if (Math.hypot(point.x - tail.x, point.y - tail.y) > 0.8) {
+        paintTrail(context, tail.x, tail.y, point.x, point.y, particle, alpha, particle.radius * mix(0.8, 1.35, progress));
       }
 
       if (progress < 0.99) {
         context.fillStyle = rgb(particle.color, Math.min(1, alpha));
         context.beginPath();
-        context.arc(point.x, point.y, Math.max(0.65, particle.width * 0.72), 0, Math.PI * 2);
+        context.arc(point.x, point.y, Math.max(0.65, particle.radius), 0, Math.PI * 2);
         context.fill();
       }
     });
     context.restore();
 
-    if (elapsed >= flight.duration) expressionState.flight = null;
+    if (elapsed >= flight.duration) {
+      expressionState.flight = null;
+      expressionState.assembledAt = now;
+    }
   }
 
-  /* Closing constellation */
+  /* Closing constellation: a voice ripples outward */
 
   const closingField = document.querySelector("[data-closing-field]");
   const closingCanvas = closingField?.querySelector("[data-closing-stars]");
+  const closingMarkSlot = closingField?.querySelector("[data-closing-mark]");
+  const CLOSING_RINGS = 6;
   const closingState = {
     context: null,
     width: 0,
     height: 0,
     dpr: 1,
     stars: [],
+    mark: { x: 0, y: 0, rx: 1, ry: 1 },
     visible: false,
     entered: false,
     enteredAt: 0,
@@ -811,46 +766,51 @@
     staticDrawn: false
   };
 
+  // Ripples seen at a low angle, like a voice dropped into still water.
+  function measureClosingMark() {
+    if (!closingMarkSlot || !closingCanvas) return;
+    const canvasRect = closingCanvas.getBoundingClientRect();
+    const rect = closingMarkSlot.getBoundingClientRect();
+    const rx = Math.min(rect.width / 2, rect.height / 2 / 0.34);
+    closingState.mark = {
+      x: rect.left - canvasRect.left + rect.width / 2,
+      y: rect.top - canvasRect.top + rect.height / 2,
+      rx,
+      ry: Math.min(rect.height / 2, rx * 0.34)
+    };
+  }
+
   function buildClosingStars() {
     if (!closingCanvas) return;
-    const changed = sizeCanvas(closingCanvas, closingState);
-    if (!changed && closingState.stars.length) return;
+    sizeCanvas(closingCanvas, closingState);
+    measureClosingMark();
+    closingState.staticDrawn = false;
+    const count = desktopQuery.matches ? 1200 : 640;
+    if (closingState.stars.length === count) return;
+
     const random = seeded(19082026);
-    const count = Math.max(52, Math.min(118, Math.round(closingState.width * closingState.height / 11800)));
-    closingState.stars = Array.from({ length: count }, (_, index) => {
-      const baseX = 0.035 + random() * 0.93;
-      const baseY = 0.1 + random() * 0.8;
-      const fromLeft = baseX < 0.5;
-      const tint = random();
-      return {
-        baseX,
-        baseY,
-        startX: fromLeft ? -0.07 - random() * 0.08 : 1.07 + random() * 0.08,
-        startY: clamp(baseY + (random() - 0.5) * 0.34, -0.08, 1.08),
-        entryDelay: random() * 430,
-        entryDuration: 720 + random() * 420,
-        radius: 0.5 + random() * 1.15,
-        alpha: 0.22 + random() * 0.48,
-        phase: random() * Math.PI * 2,
-        speed: 0.22 + random() * 0.42,
-        depth: 0.25 + random() * 0.75,
-        color: tint < 0.74 ? [224, 248, 241] : tint < 0.9 ? [168, 235, 218] : [202, 181, 246],
-        bright: index % 19 === 0,
-        cursorOffsetX: 0,
-        cursorOffsetY: 0,
-        cursorReach: 0.11 + random() * 0.11,
-        cursorResponse: 0.04 + random() * 0.07,
-        cursorPolarity: random() < 0.78 ? 1 : -0.38,
-        cursorCurl: random() * 2 - 1,
-        lastX: baseX * closingState.width,
-        lastY: baseY * closingState.height
-      };
-    });
+    closingState.stars = Array.from({ length: count }, () => ({
+      ...makeStar(random, FIELD_TINTS),
+      ring: Math.floor(random() * CLOSING_RINGS) / CLOSING_RINGS,
+      angle: random() * Math.PI * 2,
+      spread: (random() - 0.5) * 0.016,
+      startX: random(),
+      startY: random(),
+      entryDelay: random() * 520,
+      entryDuration: 1100 + random() * 700,
+      cursorOffsetX: 0,
+      cursorOffsetY: 0,
+      cursorReach: 0.08 + random() * 0.08,
+      cursorResponse: 0.04 + random() * 0.07,
+      cursorPolarity: random() < 0.78 ? 1 : -0.38,
+      cursorCurl: random() * 2 - 1,
+      lastX: 0,
+      lastY: 0
+    }));
     closingState.pointerX = closingState.width * 0.5;
     closingState.pointerY = closingState.height * 0.5;
     closingState.pointerTargetX = closingState.pointerX;
     closingState.pointerTargetY = closingState.pointerY;
-    closingState.staticDrawn = false;
   }
 
   function updateClosingPointer() {
@@ -865,21 +825,23 @@
   }
 
   function closingStarPoint(star, now) {
-    const elapsed = closingState.enteredAt ? now - closingState.enteredAt : 1200;
+    const { mark, width, height } = closingState;
+    const elapsed = closingState.enteredAt ? now - closingState.enteredAt : 1800;
     const arrival = reduceMotion ? 1 : smoothstep((elapsed - star.entryDelay) / star.entryDuration);
-    const seconds = now / 1000;
+    // Every ring travels outward together; a new one rises at the centre as the outer one fades.
+    const travel = reduceMotion ? 0.35 : now / 1000 * 0.04;
+    const radius = (star.ring + travel) % 1;
+    const reach = radius + star.spread;
     const point = {
-      x: mix(star.startX, star.baseX, arrival) * closingState.width,
-      y: mix(star.startY, star.baseY, arrival) * closingState.height
+      x: mix(star.startX * width, mark.x + Math.cos(star.angle) * reach * mark.rx, arrival),
+      y: mix(star.startY * height, mark.y + Math.sin(star.angle) * reach * mark.ry, arrival)
     };
-    point.x += Math.sin(seconds * star.speed + star.phase) * 2.8 * star.depth * arrival;
-    point.y += Math.cos(seconds * star.speed * 0.74 + star.phase) * 2.1 * star.depth * arrival;
 
     const deltaX = point.x - closingState.pointerX;
     const deltaY = point.y - closingState.pointerY;
     const distance = Math.hypot(deltaX, deltaY) || 1;
-    const reach = closingState.width * star.cursorReach;
-    const influence = closingState.pointerActive ? Math.exp(-Math.pow(distance / reach, 2)) : 0;
+    const cursorReach = closingState.width * star.cursorReach;
+    const influence = closingState.pointerActive ? Math.exp(-Math.pow(distance / cursorReach, 2)) : 0;
     const radial = influence * 22 * star.depth * star.cursorPolarity;
     const curl = influence * 12 * star.depth * star.cursorCurl;
     const offsetX = deltaX / distance * radial - deltaY / distance * curl;
@@ -890,36 +852,40 @@
     point.y += star.cursorOffsetY;
     star.lastX = point.x;
     star.lastY = point.y;
-    return { ...point, arrival };
+    const fade = smoothstep(radius / 0.14) * (1 - smoothstep((radius - 0.6) / 0.4));
+    return { ...point, arrival, fade };
   }
 
   function paintClosingStars(now) {
-    const { context, width, height, stars } = closingState;
+    const { context, width, height, stars, mark } = closingState;
     if (!context || !width || !height || !closingState.visible || !stars.length) return;
     if (reduceMotion && closingState.staticDrawn) return;
     context.clearRect(0, 0, width, height);
     if (closingState.flight) return;
     context.save();
     context.globalCompositeOperation = "lighter";
+    const seconds = now / 1000;
+    let settled = 0;
     stars.forEach((star) => {
       const point = closingStarPoint(star, now);
-      const twinkle = reduceMotion ? 0.82 : 0.72 + Math.sin(now / 1000 * star.speed + star.phase) * 0.28;
-      const alpha = star.alpha * twinkle * point.arrival;
-      if (star.bright && point.arrival > 0.45) {
-        const radius = 9 + star.depth * 8;
-        const glow = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
-        glow.addColorStop(0, rgb(star.color, alpha * 0.28));
-        glow.addColorStop(1, rgb(star.color, 0));
-        context.fillStyle = glow;
-        context.beginPath();
-        context.arc(point.x, point.y, radius, 0, Math.PI * 2);
-        context.fill();
-      }
-      context.fillStyle = rgb(star.color, alpha);
-      context.beginPath();
-      context.arc(point.x, point.y, star.radius, 0, Math.PI * 2);
-      context.fill();
+      const twinkle = reduceMotion ? 0.85 : 0.78 + Math.sin(seconds * star.speed + star.phase) * 0.22;
+      const alpha = star.alpha * twinkle * mix(0.4, 1.2 * point.fade, point.arrival);
+      paintStar(context, point.x, point.y, star, alpha);
+      settled += point.arrival;
     });
+
+    // The voice at the centre of the ripples.
+    const presence = settled / stars.length;
+    if (presence > 0.02) {
+      const pulse = reduceMotion ? 1 : 0.86 + Math.sin(seconds * 1.6) * 0.14;
+      const radius = Math.max(10, mark.ry * 0.14);
+      const glow = context.createRadialGradient(mark.x, mark.y, 0, mark.x, mark.y, radius);
+      glow.addColorStop(0, `rgba(255,244,214,${(0.95 * presence * pulse).toFixed(3)})`);
+      glow.addColorStop(0.1, `rgba(236,202,128,${(0.5 * presence * pulse).toFixed(3)})`);
+      glow.addColorStop(1, "rgba(212,175,55,0)");
+      context.fillStyle = glow;
+      context.fillRect(mark.x - radius, mark.y - radius, radius * 2, radius * 2);
+    }
     context.restore();
     if (reduceMotion) closingState.staticDrawn = true;
   }
@@ -1003,16 +969,7 @@
       const arrival = smoothstep((progress - 0.76) / 0.24);
       const alpha = particle.alpha * mix(0.8, 1.55, progress) * (1 - arrival * 0.94);
       if (Math.hypot(point.x - tail.x, point.y - tail.y) > 0.8) {
-        const gradient = context.createLinearGradient(tail.x, tail.y, point.x, point.y);
-        gradient.addColorStop(0, rgb(particle.color, 0));
-        gradient.addColorStop(1, rgb(particle.color, Math.min(0.96, alpha)));
-        context.strokeStyle = gradient;
-        context.lineWidth = particle.radius * mix(0.8, 1.35, progress);
-        context.lineCap = "round";
-        context.beginPath();
-        context.moveTo(tail.x, tail.y);
-        context.lineTo(point.x, point.y);
-        context.stroke();
+        paintTrail(context, tail.x, tail.y, point.x, point.y, particle, alpha, particle.radius * mix(0.8, 1.35, progress));
       }
       if (progress < 0.99) {
         context.fillStyle = rgb(particle.color, Math.min(1, alpha));
@@ -1022,11 +979,15 @@
       }
     });
     context.restore();
-    if (elapsed >= flight.duration) closingState.flight = null;
+    if (elapsed >= flight.duration) {
+      closingState.flight = null;
+      closingState.enteredAt = now;
+    }
   }
 
   /* Starfield and continuous history-to-language warp */
 
+  const historySection = document.querySelector("[data-history]");
   const starCanvas = document.querySelector(".stars");
   const starState = {
     context: null,
@@ -1056,22 +1017,15 @@
 
   function buildStars() {
     if (!starCanvas) return;
-    sizeCanvas(starCanvas, starState);
+    const changed = sizeCanvas(starCanvas, starState);
+    if (!changed && starState.stars.length) return;
     const random = seeded(19770525);
-    const count = Math.max(72, Math.min(250, Math.round(starState.width * starState.height / 7200)));
-    starState.stars = Array.from({ length: count }, () => {
-      const tint = random();
-      return {
-        x: random(),
-        y: random(),
-        radius: 0.42 + random() * 1.08,
-        alpha: 0.18 + random() * 0.48,
-        phase: random() * Math.PI * 2,
-        speed: 0.24 + random() * 0.9,
-        depth: 0.28 + random() * 0.72,
-        color: tint < 0.75 ? [255, 255, 255] : tint < 0.91 ? [190, 255, 224] : [168, 224, 255]
-      };
-    });
+    const count = Math.max(160, Math.min(900, Math.round(starState.width * starState.height / 2000)));
+    starState.stars = Array.from({ length: count }, () => ({
+      x: random(),
+      y: random(),
+      ...makeStar(random, FIELD_TINTS)
+    }));
     starState.lastPaint = 0;
     starState.staticDrawn = false;
   }
@@ -1311,19 +1265,9 @@
         const tailY = mix(star.flightY, star.flightTargetY, previousEased);
         const arrival = smoothstep((progress - 0.74) / 0.26);
         const alpha = star.alpha * mix(0.82, 1.5, progress) * (1 - arrival * 0.9);
-        const trail = Math.hypot(x - tailX, y - tailY);
 
-        if (trail > 1.2) {
-          const gradient = context.createLinearGradient(tailX, tailY, x, y);
-          gradient.addColorStop(0, rgb(star.color, 0));
-          gradient.addColorStop(1, rgb(star.color, Math.min(0.98, alpha)));
-          context.strokeStyle = gradient;
-          context.lineWidth = star.radius * mix(0.9, 1.8, progress);
-          context.lineCap = "round";
-          context.beginPath();
-          context.moveTo(tailX, tailY);
-          context.lineTo(x, y);
-          context.stroke();
+        if (Math.hypot(x - tailX, y - tailY) > 1.2) {
+          paintTrail(context, tailX, tailY, x, y, star, alpha, star.radius * mix(0.9, 1.8, progress));
         }
 
         if (progress < 0.985) {
@@ -1344,9 +1288,9 @@
         flight.targetX, flight.targetY, 0,
         flight.targetX, flight.targetY, glowRadius
       );
-      glow.addColorStop(0, `rgba(212,255,242,${0.72 * gather * glowFade})`);
-      glow.addColorStop(0.28, `rgba(117,229,200,${0.34 * gather * glowFade})`);
-      glow.addColorStop(1, "rgba(112,216,237,0)");
+      glow.addColorStop(0, `rgba(255,248,226,${0.72 * gather * glowFade})`);
+      glow.addColorStop(0.28, `rgba(227,203,125,${0.34 * gather * glowFade})`);
+      glow.addColorStop(1, "rgba(212,175,55,0)");
       context.fillStyle = glow;
       context.beginPath();
       context.arc(flight.targetX, flight.targetY, glowRadius, 0, Math.PI * 2);
@@ -1356,6 +1300,9 @@
       if (elapsed >= flight.duration) finishStarConvergence();
       return;
     }
+
+    context.save();
+    context.globalCompositeOperation = "lighter";
 
     stars.forEach((star, index) => {
       const pointerOffset = starPointerOffset(star);
@@ -1390,44 +1337,39 @@
         edge = distance / farthest;
       }
 
-      const twinkle = reduceMotion ? 0.85 : 0.72 + 0.28 * Math.sin(seconds * star.speed + star.phase);
+      const twinkle = reduceMotion ? 0.85 : 0.74 + 0.26 * Math.sin(seconds * star.speed + star.phase);
       const alpha = star.alpha * twinkle * (1 + warp.amount * 0.7);
-      const streak = warp.amount * warp.amount * edge * 155;
+      const calm = star.radius < 0.8 ? mix(0.4, 1, smoothstep((warp.amount - 0.6) / 0.4)) : 1;
+      const streak = warp.amount * warp.amount * edge * 155 * calm;
 
       if (streak > 1.6) {
         const startX = x - warp.direction * (dx / distance) * streak;
         const startY = y - warp.direction * (dy / distance) * streak;
         if (warp.amount < 0.55) {
           context.strokeStyle = rgb(star.color, Math.min(0.34, alpha * 0.58));
+          context.lineWidth = star.radius * (1 + warp.amount * 0.8);
+          context.lineCap = "round";
+          context.beginPath();
+          context.moveTo(startX, startY);
+          context.lineTo(x, y);
+          context.stroke();
         } else {
-          const gradient = context.createLinearGradient(startX, startY, x, y);
-          gradient.addColorStop(0, rgb(star.color, 0));
-          gradient.addColorStop(1, rgb(star.color, Math.min(0.96, alpha)));
-          context.strokeStyle = gradient;
+          paintTrail(context, startX, startY, x, y, star, alpha, star.radius * (1 + warp.amount * 0.8));
         }
-        context.lineWidth = star.radius * (1 + warp.amount * 0.8);
-        context.lineCap = "round";
-        context.beginPath();
-        context.moveTo(startX, startY);
-        context.lineTo(x, y);
-        context.stroke();
       } else {
-        context.fillStyle = rgb(star.color, alpha);
-        context.beginPath();
-        context.arc(x, y, star.radius, 0, Math.PI * 2);
-        context.fill();
+        paintStar(context, x, y, star, alpha);
       }
     });
 
+    context.restore();
     if (reduceMotion) starState.staticDrawn = true;
   }
 
-  /* Cinematic English-to-Hindi passage */
+  /* Cinematic English-to-Hindi passage: the voice drawn in stars */
 
   const cinemaSection = document.querySelector(".cinema-outer");
   const cinemaFrame = cinemaSection?.querySelector(".cinema");
   const cinemaCanvas = cinemaSection?.querySelector(".cinema-canvas");
-  const cinemaWaveCanvas = cinemaSection?.querySelector(".cinema-wave-canvas");
   const cinemaButton = cinemaSection?.querySelector(".cinema-play");
   const cinemaProgress = cinemaSection?.querySelector(".cinema-progress i");
   const cinemaEnglish = cinemaSection?.querySelector(".audio-en");
@@ -1441,9 +1383,8 @@
     width: 0,
     height: 0,
     dpr: 1,
-    waveContext: null,
-    waveWidth: 0,
-    waveHeight: 0,
+    particles: [],
+    approach: 0,
     progress: 0,
     visible: false,
     language: "en",
@@ -1453,19 +1394,66 @@
     analyser: null,
     frequencyData: null,
     connected: new WeakSet(),
-    crossfade: null,
-    startedAt: performance.now()
+    crossfade: null
   };
 
-  function sizeCinemaCanvases() {
-    if (cinemaCanvas) sizeCanvas(cinemaCanvas, cinemaState, 1.5);
-    if (cinemaWaveCanvas) {
-      const waveState = {};
-      sizeCanvas(cinemaWaveCanvas, waveState, 1.5);
-      cinemaState.waveContext = waveState.context;
-      cinemaState.waveWidth = waveState.width;
-      cinemaState.waveHeight = waveState.height;
+  function sizeCinemaCanvas() {
+    if (!cinemaCanvas) return;
+    sizeCanvas(cinemaCanvas, cinemaState, 1.5);
+    const count = desktopQuery.matches ? 1500 : 720;
+    if (cinemaState.particles.length === count) return;
+    const random = seeded(5291977);
+    const columns = desktopQuery.matches ? 96 : 56;
+    cinemaState.particles = Array.from({ length: count }, () => {
+      // Most stars stand in columns so the voice reads as a waveform; the rest drift between them.
+      const dust = random() < 0.1;
+      const star = makeStar(random, FIELD_TINTS);
+      return {
+        ...star,
+        radius: star.radius * (dust ? 0.9 : 1.1),
+        alpha: Math.min(1, star.alpha * (dust ? 0.8 : 1.3)),
+        x: dust ? random() : (Math.floor(random() * columns) + 0.5) / columns + (random() - 0.5) * 0.0025,
+        offset: !dust && random() < 0.28 ? (random() < 0.5 ? -1 : 1) : (random() * 2 - 1) * (dust ? 1.1 : 0.94),
+        scatterX: random(),
+        scatterY: random(),
+        sourceColor: pickTint(random, SOURCE_TINTS),
+        renditionColor: pickTint(random, RENDITION_TINTS)
+      };
+    });
+  }
+
+  const envelopeCache = new WeakMap();
+
+  // A softened loudness curve for one clip, so the stars follow the phrase
+  // rather than every transient.
+  function voiceEnvelope(audio) {
+    const player = audio ? audioPlayers.find((candidate) => candidate.audio?.src === audio.src) : null;
+    const samples = player?.samples;
+    if (!samples?.length) return null;
+    let envelope = envelopeCache.get(samples);
+    if (!envelope) {
+      envelope = samples.map((_, index) => {
+        let total = 0;
+        let weight = 0;
+        for (let offset = -1; offset <= 1; offset += 1) {
+          const sample = samples[index + offset];
+          if (sample === undefined) continue;
+          total += sample * (2 - Math.abs(offset));
+          weight += 2 - Math.abs(offset);
+        }
+        return Math.pow(total / weight, 1.6);
+      });
+      envelopeCache.set(samples, envelope);
     }
+    return envelope;
+  }
+
+  function envelopeAt(envelope, amount) {
+    if (!envelope) return 0.35 + Math.sin(amount * Math.PI * 6) * 0.15;
+    const position = clamp(amount) * (envelope.length - 1);
+    const index = Math.floor(position);
+    const next = Math.min(envelope.length - 1, index + 1);
+    return mix(envelope[index], envelope[next], position - index);
   }
 
   function connectCinemaAudio(audio) {
@@ -1601,172 +1589,53 @@
     cinemaState.visible = rect.top < window.innerHeight && rect.bottom > 0;
     if (!cinemaState.visible) return;
     const usable = Math.max(1, rect.height - window.innerHeight);
-    const progress = clamp(-rect.top / usable);
-    cinemaState.progress = progress;
-    changeCinemaLanguage(progress >= 0.54 ? "hi" : "en", now);
-  }
-
-  const warmPalette = {
-    sky: [[6, 18, 29], [22, 67, 73], [182, 124, 82]],
-    accent: [92, 226, 180],
-    horizon: [232, 163, 61],
-    disc: [247, 221, 183]
-  };
-
-  const coolPalette = {
-    sky: [[8, 15, 33], [50, 47, 100], [116, 97, 168]],
-    accent: [177, 140, 255],
-    horizon: [114, 216, 237],
-    disc: [221, 212, 255]
-  };
-
-  function paintAuroraRibbon(context, width, height, seconds, color, index, alpha) {
-    const y = height * (0.16 + index * 0.075);
-    const sway = Math.sin(seconds * (0.11 + index * 0.025) + index * 1.7) * height * 0.04;
-    context.save();
-    context.globalCompositeOperation = "screen";
-    context.strokeStyle = rgb(color, alpha);
-    context.lineWidth = height * (0.045 + index * 0.012);
-    context.lineCap = "round";
-    context.beginPath();
-    context.moveTo(-width * 0.08, y + sway);
-    context.bezierCurveTo(
-      width * 0.2,
-      y - height * 0.13 - sway,
-      width * 0.48,
-      y + height * 0.12 + sway,
-      width * 0.72,
-      y - height * 0.03
-    );
-    context.bezierCurveTo(
-      width * 0.88,
-      y - height * 0.12,
-      width * 1.02,
-      y + height * 0.08,
-      width * 1.1,
-      y
-    );
-    context.stroke();
-    context.restore();
+    cinemaState.approach = clamp(1 - rect.top / window.innerHeight);
+    cinemaState.progress = clamp(-rect.top / usable);
+    changeCinemaLanguage(cinemaState.progress >= 0.54 ? "hi" : "en", now);
   }
 
   function paintCinemaScene(now) {
-    const context = cinemaState.context;
-    const width = cinemaState.width;
-    const height = cinemaState.height;
+    const { context, width, height, particles } = cinemaState;
     if (!context || !width || !height) return;
-
-    const seconds = (now - cinemaState.startedAt) / 1000;
-    const blend = smoothstep((cinemaState.progress - 0.16) / 0.7);
-    const skyTop = mixColor(warmPalette.sky[0], coolPalette.sky[0], blend);
-    const skyMiddle = mixColor(warmPalette.sky[1], coolPalette.sky[1], blend);
-    const skyBottom = mixColor(warmPalette.sky[2], coolPalette.sky[2], blend);
-    const accent = mixColor(warmPalette.accent, coolPalette.accent, blend);
-    const horizon = mixColor(warmPalette.horizon, coolPalette.horizon, blend);
-    const disc = mixColor(warmPalette.disc, coolPalette.disc, blend);
-
     context.clearRect(0, 0, width, height);
-    const sky = context.createLinearGradient(0, 0, 0, height);
-    sky.addColorStop(0, rgb(skyTop));
-    sky.addColorStop(0.58, rgb(skyMiddle));
-    sky.addColorStop(1, rgb(skyBottom));
-    context.fillStyle = sky;
-    context.fillRect(0, 0, width, height);
+    if (!particles.length) return;
 
-    const hazeX = width * 0.5 + Math.sin(seconds * 0.14) * width * 0.055;
-    const hazeY = height * 0.68 + Math.cos(seconds * 0.1) * height * 0.025;
-    const haze = context.createRadialGradient(hazeX, hazeY, 0, hazeX, hazeY, width * 0.56);
-    haze.addColorStop(0, rgb(horizon, 0.24));
-    haze.addColorStop(1, rgb(horizon, 0));
-    context.fillStyle = haze;
-    context.fillRect(0, 0, width, height);
-
-    paintAuroraRibbon(context, width, height, seconds, accent, 0, 0.11);
-    paintAuroraRibbon(context, width, height, seconds, mixColor(accent, [104, 216, 237], 0.45), 1, 0.075);
-    paintAuroraRibbon(context, width, height, seconds, mixColor(accent, [205, 138, 245], 0.55), 2, 0.055);
-
-    const discX = width * (0.5 + Math.sin(seconds * 0.075) * 0.045);
-    const discY = height * (0.43 - blend * 0.045);
-    const discRadius = Math.max(48, height * 0.095);
-    const discGlow = context.createRadialGradient(discX, discY, 0, discX, discY, discRadius * 3.4);
-    discGlow.addColorStop(0, rgb(disc, 0.76));
-    discGlow.addColorStop(0.32, rgb(disc, 0.25));
-    discGlow.addColorStop(1, rgb(disc, 0));
-    context.fillStyle = discGlow;
-    context.fillRect(discX - discRadius * 3.4, discY - discRadius * 3.4, discRadius * 6.8, discRadius * 6.8);
-    context.fillStyle = rgb(disc, 0.92);
-    context.beginPath();
-    context.arc(discX, discY, discRadius, 0, Math.PI * 2);
-    context.fill();
-
-    for (let index = 0; index < 44; index += 1) {
-      const x = ((index * 137.5 + seconds * 6) % (width + 50)) - 25;
-      const y = height * 0.26 + Math.sin(index * 1.7 + seconds * 0.35) * height * 0.14 + (index % 6) * height * 0.018;
-      const alpha = 0.08 + 0.13 * (0.5 + Math.sin(index * 1.3 + seconds) * 0.5);
-      context.fillStyle = rgb(disc, alpha);
-      context.beginPath();
-      context.arc(x, y, 0.8 + (index % 3) * 0.25, 0, Math.PI * 2);
-      context.fill();
-    }
-
-    function mountains(baseY, seed, color, amplitude) {
-      context.fillStyle = color;
-      context.beginPath();
-      context.moveTo(0, height);
-      context.lineTo(0, baseY);
-      const peaks = 10;
-      for (let index = 0; index <= peaks; index += 1) {
-        const x = index / peaks * width;
-        const noise = Math.sin(seed + index * 2.31) * 0.5 + 0.5;
-        const y = baseY - noise * height * amplitude + Math.sin(seconds * 0.07 + index) * 1.5;
-        context.lineTo(x, y);
-      }
-      context.lineTo(width, height);
-      context.closePath();
-      context.fill();
-    }
-
-    mountains(height * 0.76, 12.3, "rgba(9,18,28,0.56)", 0.2);
-    mountains(height * 0.84, 24.7, "rgba(6,13,23,0.76)", 0.19);
-    mountains(height * 0.92, 3.1, "rgba(3,9,16,0.94)", 0.16);
-
-    const foreground = context.createLinearGradient(0, height * 0.68, 0, height);
-    foreground.addColorStop(0, "rgba(2,7,12,0)");
-    foreground.addColorStop(1, "rgba(2,7,12,0.62)");
-    context.fillStyle = foreground;
-    context.fillRect(0, height * 0.68, width, height * 0.32);
-  }
-
-  function paintCinemaWave(now) {
-    const context = cinemaState.waveContext;
-    const width = cinemaState.waveWidth;
-    const height = cinemaState.waveHeight;
-    if (!context || !width || !height) return;
-
-    context.clearRect(0, 0, width, height);
-    const bars = Math.max(42, Math.min(86, Math.round(width / 14)));
-    const slot = width / bars;
-    const barWidth = Math.max(1, slot * 0.52);
-    const blend = smoothstep((cinemaState.progress - 0.16) / 0.7);
-    const color = mixColor([232, 163, 61], [177, 140, 255], blend);
     const seconds = now / 1000;
-
-    if (cinemaState.analyser && cinemaState.frequencyData && cinemaState.playing) {
+    const leaving = smoothstep((cinemaState.progress - 0.9) / 0.1);
+    const gather = reduceMotion ? 1 : smoothstep(cinemaState.approach) * (1 - leaving);
+    const source = voiceEnvelope(cinemaEnglish);
+    const rendition = voiceEnvelope(cinemaHindi);
+    const left = width * 0.1;
+    const span = width * 0.8;
+    const centreY = height * 0.5;
+    const amplitude = Math.min(height * 0.2, 180);
+    const audio = cinemaState.currentAudio;
+    const playhead = cinemaState.playing && audio?.duration ? audio.currentTime / audio.duration : -1;
+    let voiceLevel = 0;
+    if (playhead >= 0 && cinemaState.analyser && cinemaState.frequencyData) {
       cinemaState.analyser.getByteFrequencyData(cinemaState.frequencyData);
+      voiceLevel = cinemaState.frequencyData.reduce((total, value) => total + value, 0) / (cinemaState.frequencyData.length * 255);
     }
 
-    for (let index = 0; index < bars; index += 1) {
-      let amplitude;
-      if (cinemaState.analyser && cinemaState.frequencyData && cinemaState.playing) {
-        const sampleIndex = Math.floor(index / bars * cinemaState.frequencyData.length);
-        amplitude = 0.12 + cinemaState.frequencyData[sampleIndex] / 255 * 0.88;
-      } else {
-        amplitude = 0.1 + Math.abs(Math.sin(index * 0.32 + seconds * 1.35)) * 0.18;
-      }
-      const barHeight = Math.max(2, amplitude * height);
-      context.fillStyle = rgb(color, 0.32 + amplitude * 0.58);
-      context.fillRect(index * slot, (height - barHeight) / 2, barWidth, barHeight);
-    }
+    context.save();
+    context.globalCompositeOperation = "lighter";
+    particles.forEach((particle) => {
+      // The rendition sweeps through the voice from left to right as the scroll carries it into Hindi.
+      const turn = reduceMotion ? 0 : smoothstep((cinemaState.progress - 0.42 - particle.x * 0.14) / 0.1);
+      const level = mix(envelopeAt(source, particle.x), envelopeAt(rendition, particle.x), turn);
+      const head = playhead >= 0 ? Math.exp(-Math.pow((particle.x - playhead) / 0.014, 2)) : 0;
+      const waveX = left + particle.x * span;
+      const waveY = centreY + particle.offset * (0.06 + level * 0.94 + head * voiceLevel * 0.35) * amplitude;
+      const x = mix(particle.scatterX * width, waveX, gather);
+      const y = mix(particle.scatterY * height, waveY, gather);
+      const color = mixColor(particle.sourceColor, particle.renditionColor, turn);
+      const glowColor = turn < 0.5 ? particle.sourceColor : particle.renditionColor;
+      const twinkle = reduceMotion ? 0.9 : 0.8 + Math.sin(seconds * particle.speed + particle.phase) * 0.2;
+      const spoken = playhead < 0 ? 1 : particle.x <= playhead ? 1.15 : 0.55;
+      const alpha = particle.alpha * twinkle * mix(0.35, 1.1, gather) * spoken + head * 0.5;
+      paintStar(context, x, y, particle, alpha, color, glowColor);
+    });
+    context.restore();
   }
 
   function updateCinemaProgress() {
@@ -1881,7 +1750,7 @@
       const sample = samples[Math.floor(index * step)];
       const barHeight = Math.max(2, sample * height * 0.88);
       const active = index / count <= progress;
-      context.fillStyle = active ? "rgba(22,36,38,0.92)" : "rgba(73,101,98,0.27)";
+      context.fillStyle = active ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.22)";
       context.fillRect(index * slot, (height - barHeight) / 2, barWidth, barHeight);
     }
     player.dirty = false;
@@ -1955,31 +1824,46 @@
     });
   }
 
+  /* Studio sample tabs */
+
+  const sampleTabs = Array.from(document.querySelectorAll("[data-sample-tab]"));
+
+  function selectSampleTab(tab, { focus = false } = {}) {
+    sampleTabs.forEach((candidate) => {
+      const selected = candidate === tab;
+      candidate.setAttribute("aria-selected", String(selected));
+      candidate.setAttribute("tabindex", selected ? "0" : "-1");
+      const panel = document.getElementById(candidate.getAttribute("aria-controls"));
+      if (!panel) return;
+      panel.hidden = !selected;
+      if (!selected) panel.querySelector("audio")?.pause();
+    });
+    if (focus) tab.focus();
+    markLayoutDirty();
+  }
+
+  sampleTabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => selectSampleTab(tab));
+    tab.addEventListener("keydown", (event) => {
+      const targets = { ArrowRight: index + 1, ArrowLeft: index - 1, Home: 0, End: sampleTabs.length - 1 };
+      if (!(event instanceof KeyboardEvent) || !(event.key in targets)) return;
+      event.preventDefault();
+      selectSampleTab(sampleTabs[(targets[event.key] + sampleTabs.length) % sampleTabs.length], { focus: true });
+    });
+  });
+
   /* Measurement and animation coordinator */
 
   function measureAll() {
     layoutDirty = false;
-    configureHistory();
     buildStars();
     measureWarp();
     if (expressionCanvas) buildExpressionMotes();
     if (closingCanvas) buildClosingStars();
-    updateMobileHistoryProgress();
-    sizeCinemaCanvases();
+    sizeCinemaCanvas();
     audioPlayers.forEach(sizePlayerCanvas);
-    updateHistory();
+    updateHeroDispersal(cachedScrollY);
     updatePlayers();
-  }
-
-  function updateJourney(scrollY) {
-    const maximum = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    const pageProgress = clamp(scrollY / maximum);
-    const bell = Math.sin(pageProgress * Math.PI);
-    const journey = smoothstep(bell);
-    if (!Number.isFinite(lastJourney) || Math.abs(journey - lastJourney) > 0.0005) {
-      root.style.setProperty("--journey", journey.toFixed(3));
-      lastJourney = journey;
-    }
   }
 
   function tick(now) {
@@ -1990,13 +1874,11 @@
     const scrolling = scrollDirty || now - lastScrollAt < 150;
     if (scrollDirty) {
       cachedScrollY = window.scrollY;
-      updateJourney(cachedScrollY);
-      updateHistory();
+      updateHeroDispersal(cachedScrollY);
       updateCinemaScroll(now);
       scrollDirty = false;
     }
 
-    updateSuitePointer();
     const expressionPointerMoving = updateExpressionPointer();
     const closingPointerMoving = updateClosingPointer();
     updateCrossfade(now);
@@ -2017,8 +1899,10 @@
       lastStarFrame = now;
     }
 
-    const expressionHighRate = expressionPointerMoving
-      || now - expressionState.lastPointerAt < 520;
+    const expressionHighRate = scrolling
+      || expressionPointerMoving
+      || now - expressionState.lastPointerAt < 520
+      || now - expressionState.assembledAt < 3200;
     const expressionFrameInterval = expressionHighRate ? 15 : 30;
     if (expressionState.visible && (now - lastExpressionFrame >= expressionFrameInterval || reduceMotion)) {
       paintExpressionField(now);
@@ -2028,17 +1912,14 @@
     const closingHighRate = scrolling
       || closingPointerMoving
       || now - closingState.lastPointerAt < 520
-      || (closingState.visible && now - closingState.enteredAt < 1650);
+      || (closingState.visible && now - closingState.enteredAt < 2400);
     const closingFrameInterval = closingHighRate ? 15 : 30;
     if (closingState.visible && (now - lastClosingFrame >= closingFrameInterval || reduceMotion)) {
       paintClosingStars(now);
       lastClosingFrame = now;
     }
 
-    if (cinemaState.visible) {
-      paintCinemaScene(now);
-      paintCinemaWave(now);
-    }
+    if (cinemaState.visible) paintCinemaScene(now);
 
     const anyAudio = cinemaState.playing || audioPlayers.some((player) => player.audio && !player.audio.paused);
     if (!reduceMotion || anyAudio || cinemaState.crossfade) requestFrame();
@@ -2064,7 +1945,6 @@
   if ("ResizeObserver" in window) {
     const resizeObserver = new ResizeObserver(markLayoutDirty);
     resizeObserver.observe(document.documentElement);
-    if (historyTrack) resizeObserver.observe(historyTrack);
     if (expressionCanvas) resizeObserver.observe(expressionCanvas);
     if (closingCanvas) resizeObserver.observe(closingCanvas);
     if (cinemaCanvas) resizeObserver.observe(cinemaCanvas);
@@ -2077,22 +1957,11 @@
 
   function handleMotionPreference(event) {
     reduceMotion = event.matches;
-    root.classList.toggle("motion-enabled", !reduceMotion);
     if (reduceMotion) {
-      const activeSuiteRow = suitePointerState.row;
-      resetSuitePointer();
-      clearSuitePointerStyles(activeSuiteRow);
-      suitePointerState.row = null;
-      suitePointerState.currentX = 0.5;
-      suitePointerState.currentY = 0.5;
       starState.pointerX = 0;
       starState.pointerY = 0;
       starState.pointerTargetX = 0;
       starState.pointerTargetY = 0;
-      expressionState.pointerX = 0;
-      expressionState.pointerY = 0;
-      expressionState.targetX = 0;
-      expressionState.targetY = 0;
       expressionState.pointerActive = false;
       expressionState.flight = null;
       expressionState.motes.forEach((mote) => {
@@ -2128,7 +1997,6 @@
   document.addEventListener("visibilitychange", () => {
     pageVisible = !document.hidden;
     if (pageVisible) {
-      cinemaState.startedAt = performance.now();
       requestFrame();
     } else if (rafId) {
       cancelAnimationFrame(rafId);
@@ -2173,6 +2041,7 @@
   window.addEventListener("load", markLayoutDirty, { once: true });
   document.fonts?.ready.then(markLayoutDirty);
 
+  if (expressionCanvas) loadHeroMark();
   measureAll();
   updateCinemaButton();
   requestFrame();

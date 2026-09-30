@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#081522">
-  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#000000">
+  <meta name="color-scheme" content="dark">
   <meta name="robots" content="noindex">
 
   <title>Creator | Porus.ai</title>
@@ -12,20 +12,13 @@
   <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml">
 
   <link rel="preload" href="/assets/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/assets/newsreader-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/src/styles.css">
   <script type="module" src="/src/app.ts"></script>
 </head>
 <body class="app-body">
   <a class="skip-link" href="#main">Skip to content</a>
 
-  <div class="sky" aria-hidden="true">
-    <div class="sky-wash sky-wash--warm"></div>
-    <div class="sky-wash sky-wash--cool"></div>
-    <div class="aurora aurora--one"></div>
-    <div class="aurora aurora--two"></div>
-    <div class="aurora aurora--three"></div>
-  </div>
+  <div class="sky" aria-hidden="true"></div>
 
   <header class="app-header">
     <div class="shell app-header-inner">
@@ -145,7 +138,7 @@
           </div>
         </div>
         <div class="job-report-actions">
-          <a class="button button--ink" data-download-dub download>Download dub</a>
+          <a class="button button--light" data-download-dub download>Download dub</a>
           <button class="button button--glass" type="button" data-download-subtitles>Download subtitles</button>
         </div>
         <p class="job-report-note">Demo output: a sample Hindi take, not a synthesis of your uploaded clip.</p>

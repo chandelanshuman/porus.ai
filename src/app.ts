@@ -135,9 +135,9 @@
      so on down the line until the last stage swallows the final burst. */
 
   const STAR_COLORS = [
-    [199, 241, 229], // aqua
-    [245, 217, 168], // gold
-    [188, 169, 244] // violet
+    [224, 233, 255], // frost
+    [236, 202, 128], // gold
+    [168, 196, 240] // blue
   ];
 
   function seededRandom(seed) {

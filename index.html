@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#081522">
-  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#000000">
+  <meta name="color-scheme" content="dark">
 
   <title>Porus.ai | The human expression company</title>
   <meta name="description" content="Porus is building the expression layer for a multilingual world, beginning with approval-first spoken-media localization.">
@@ -19,7 +19,6 @@
   <meta name="twitter:card" content="summary">
 
   <link rel="preload" href="/assets/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/assets/newsreader-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/src/styles.css">
   <script type="module" src="/src/main.ts"></script>
 
@@ -37,20 +36,15 @@
 <body>
   <!--
     THESIS: Human expression can cross language without being flattened into words alone.
-    OWN-WORLD: A luminous polar night where language behaves like light, sound, and distance.
+    OWN-WORLD: A black sky whose stars gather into the shapes of expression: the Porus mark, a voice, a ripple.
     STORY: Expression begins close to one person, travels through human history, crosses language, and becomes a trusted product foundation.
-    FIRST VIEWPORT: One restrained kinetic sentence, living aurora, a clear company claim, and two useful actions.
-    FORM: Editorial type, cinema-wide fields, one horizontal history passage, one full-viewport language crossing, and rare functional glass.
+    FIRST VIEWPORT: The Porus mark assembling from stars, one centered claim, and two useful actions.
+    FORM: One sans-serif voice, centered reading columns, one starfield that draws, flat pill controls, and hairline cards.
     FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
   -->
   <a class="skip-link" href="#main">Skip to content</a>
 
   <div class="sky" aria-hidden="true">
-    <div class="sky-wash sky-wash--warm"></div>
-    <div class="sky-wash sky-wash--cool"></div>
-    <div class="aurora aurora--one"></div>
-    <div class="aurora aurora--two"></div>
-    <div class="aurora aurora--three"></div>
     <canvas class="stars"></canvas>
   </div>
 
@@ -78,18 +72,14 @@
 
   <main id="main">
     <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="hero-sky" data-expression-field aria-hidden="true">
+        <canvas class="expression-canvas" data-expression-canvas></canvas>
+      </div>
+
       <div class="shell hero-layout">
+        <div class="hero-mark" data-hero-mark aria-hidden="true"></div>
         <div class="hero-copy">
-          <h1 id="hero-title">
-            <span>A voice carries</span>
-            <span class="kinetic-words" aria-hidden="true">
-              <span style="--word:0">meaning.</span>
-              <span style="--word:1">rhythm.</span>
-              <span style="--word:2">memory.</span>
-              <span style="--word:3">someone.</span>
-            </span>
-            <span class="sr-only">meaning, rhythm, memory, and the person behind it.</span>
-          </h1>
+          <h1 id="hero-title">A voice carries meaning.</h1>
           <p class="hero-lede">Porus is building the expression layer for a multilingual world.</p>
           <p class="hero-detail">We begin with approval-first spoken-media localization, designed to carry more of the original moment and keep people in control.</p>
           <div class="hero-actions">
@@ -97,23 +87,18 @@
             <a class="button button--glass" href="#studio">Meet Porus Studio</a>
           </div>
         </div>
-
-        <div class="hero-score" data-expression-field aria-hidden="true">
-          <canvas class="expression-canvas" data-expression-canvas></canvas>
-        </div>
-
         <p class="alpha-note"><span>Technical alpha</span> One evidenced English to Hindi short-form route. Review architecture is in development.</p>
       </div>
     </section>
 
-    <section class="history-panorama" id="mission" aria-labelledby="history-title" data-horizontal>
-      <div class="history-sticky">
-        <div class="shell history-intro">
+    <section class="history-field" id="mission" aria-labelledby="history-title" data-history>
+      <div class="shell">
+        <div class="column section-head">
           <h2 id="history-title">Every leap helped expression travel farther.</h2>
           <p>Each medium carried something the last one could not. The next leap is helping the person inside the message arrive.</p>
         </div>
 
-        <ol class="history-track" data-horizontal-track>
+        <ol class="column column--media history-track">
           <li><span class="history-era">Speech</span><h3>Presence</h3><p>Meaning lived in breath, rhythm, gesture, and a shared moment.</p></li>
           <li><span class="history-era">Writing</span><h3>Time</h3><p>Thought could outlive the room and the person who formed it.</p></li>
           <li><span class="history-era">Print</span><h3>Scale</h3><p>One idea could move through communities and generations.</p></li>
@@ -121,44 +106,39 @@
           <li><span class="history-era">Internet</span><h3>Reach</h3><p>Expression could cross the planet almost instantly.</p></li>
           <li class="history-arrival"><span class="history-era">The expression layer</span><h3>Understanding</h3><p>Not only moving words. Helping more of the human moment make the journey.</p></li>
         </ol>
-        <div class="history-mobile-cue" data-history-cue aria-hidden="true">
-          <span>Swipe through the journey</span>
-          <span class="history-mobile-progress"><i data-history-progress></i></span>
-        </div>
       </div>
     </section>
 
     <section class="loss-field" aria-labelledby="loss-title">
-      <div class="shell loss-layout">
-        <div class="loss-copy">
+      <div class="shell">
+        <div class="column section-head">
           <h2 id="loss-title">Words can arrive while the person gets lost.</h2>
           <p>Literal accuracy is only one layer of understanding. Delivery changes what a sentence becomes in another human being.</p>
         </div>
-        <div class="loss-lines">
-          <p data-drift="left"><span>A joke</span> without its rhythm.</p>
-          <p data-drift="right"><span>An apology</span> without its tenderness.</p>
-          <p data-drift="left"><span>A warning</span> without its urgency.</p>
-          <p data-drift="right"><span>A lesson</span> with the wrong emphasis.</p>
+
+        <div class="column loss-lines">
+          <p><span>A joke</span> without its rhythm.</p>
+          <p><span>An apology</span> without its tenderness.</p>
+          <p><span>A warning</span> without its urgency.</p>
+          <p><span>A lesson</span> with the wrong emphasis.</p>
         </div>
       </div>
     </section>
 
     <section class="passage-intro" aria-labelledby="passage-title">
-      <div class="shell passage-copy">
-        <h2 id="passage-title">The next frontier is not reach. It is arrival.</h2>
-        <p>Listen to one narrow technical-alpha example move from its source into a Hindi test rendition.</p>
+      <div class="shell">
+        <div class="column section-head">
+          <h2 id="passage-title">The next frontier is not reach. It is arrival.</h2>
+          <p>Listen to one narrow technical-alpha example move from its source into a Hindi test rendition.</p>
+        </div>
       </div>
     </section>
 
     <section class="cinema-outer" id="demo" aria-label="English to Hindi technical-alpha audio example">
-      <span class="cinema-halo cinema-halo--top" aria-hidden="true"></span>
-      <span class="cinema-halo cinema-halo--bottom" aria-hidden="true"></span>
       <div class="cinema-pin">
         <div class="cinema">
           <canvas class="cinema-canvas" aria-hidden="true"></canvas>
           <div class="cinema-vignette" aria-hidden="true"></div>
-          <div class="cinema-edge cinema-edge--top" aria-hidden="true"></div>
-          <div class="cinema-edge cinema-edge--bottom" aria-hidden="true"></div>
 
           <div class="cinema-badge">
             <span class="badge-light" aria-hidden="true"></span>
@@ -182,7 +162,6 @@
             <p class="caption-line caption-hi" lang="hi">“हम रात होने से पहले उस दर्रे को कभी पार नहीं कर पाते।”</p>
             <span class="sr-only" data-demo-announcement aria-live="polite"></span>
           </div>
-          <div class="cinema-wave" aria-hidden="true"><canvas class="cinema-wave-canvas"></canvas></div>
           <p class="cinema-instruction"><span aria-hidden="true">↓</span> Keep scrolling to carry the moment into Hindi</p>
           <div class="cinema-progress" aria-hidden="true"><i></i></div>
           <p class="cinema-disclosure" id="demo-note">Prerecorded preset synthetic voices. This is not a quality benchmark.</p>
@@ -194,82 +173,94 @@
     </section>
 
     <section class="studio-field" id="studio" aria-labelledby="studio-title">
-      <div class="shell studio-grid">
-        <div class="studio-copy">
+      <div class="shell">
+        <div class="column section-head">
           <h2 id="studio-title">Porus Studio carries the idea into practice.</h2>
           <p>An approval-first workspace for spoken-media localization, being built to help teams translate, fit, review, and approve each rendition against the original moment.</p>
-          <p class="truth-boundary"><strong>Where it stands:</strong> a technical alpha with an evidenced English to Hindi short-form test route. Integrated review, secure media handling, and repeatable quality benchmarks remain in development.</p>
-          <a class="button button--ink studio-application-link" href="mailto:hello@porus.ai?subject=Authorized%20Porus%20Studio%20test%20clip">Apply to test an authorized clip</a>
         </div>
 
-        <ol class="workflow" aria-label="Target Porus Studio workflow">
+        <div class="column column--media sample-proof">
+          <div class="segmented" role="tablist" aria-label="Technical-alpha audio samples">
+            <button class="segmented-tab" type="button" role="tab" id="sample-tab-en" aria-selected="true" aria-controls="sample-panel-en" data-sample-tab>English source</button>
+            <button class="segmented-tab" type="button" role="tab" id="sample-tab-hi" aria-selected="false" aria-controls="sample-panel-hi" tabindex="-1" data-sample-tab>Hindi test rendition</button>
+          </div>
+
+          <article class="audio-row" id="sample-panel-en" role="tabpanel" aria-labelledby="sample-tab-en" data-audio-player>
+            <button class="audio-toggle" type="button" data-audio-toggle aria-label="Play English source sample"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+            <div class="audio-meta"><strong>English source</strong><span data-audio-status>Ready</span></div>
+            <time data-audio-time>Loading</time>
+            <canvas class="audio-wave" data-waveform width="820" height="96" aria-hidden="true"></canvas>
+            <audio preload="metadata" src="/sample-en.wav"></audio>
+          </article>
+          <article class="audio-row" id="sample-panel-hi" role="tabpanel" aria-labelledby="sample-tab-hi" data-audio-player hidden>
+            <button class="audio-toggle" type="button" data-audio-toggle aria-label="Play Hindi test rendition"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+            <div class="audio-meta"><strong>Hindi test rendition</strong><span data-audio-status>Ready</span></div>
+            <time data-audio-time>Loading</time>
+            <canvas class="audio-wave" data-waveform width="820" height="96" aria-hidden="true"></canvas>
+            <audio preload="metadata" src="/sample-hi.wav"></audio>
+          </article>
+          <p class="media-caption">Interactive prerecorded example. Preset synthetic test voices.</p>
+        </div>
+
+        <ol class="column column--media workflow" aria-label="Target Porus Studio workflow">
           <li><span>Translate</span><p>Carry intent and context into a working rendition.</p></li>
           <li><span>Fit</span><p>Shape the line for the moment it belongs to.</p></li>
           <li><span>Review</span><p>Put language and expression decisions in human hands.</p></li>
           <li><span>Approve</span><p>Release only the version an authorized person accepts.</p></li>
         </ol>
-        <p class="workflow-note">Target workflow. Product experience is in development.</p>
+        <p class="column column--media workflow-note">Target workflow. Product experience is in development.</p>
 
-        <div class="audio-proof" aria-label="English and Hindi technical-alpha audio samples">
-          <article class="audio-row" data-audio-player>
-            <button class="audio-toggle" type="button" data-audio-toggle aria-label="Play English source sample"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
-            <div class="audio-main"><div><strong>English source</strong><span data-audio-status>Ready</span></div><canvas data-waveform width="700" height="74" aria-hidden="true"></canvas></div>
-            <time data-audio-time>Loading</time>
-            <audio preload="metadata" src="/sample-en.wav"></audio>
-          </article>
-          <article class="audio-row" data-audio-player>
-            <button class="audio-toggle" type="button" data-audio-toggle aria-label="Play Hindi test rendition"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
-            <div class="audio-main"><div><strong>Hindi test rendition</strong><span data-audio-status>Ready</span></div><canvas data-waveform width="700" height="74" aria-hidden="true"></canvas></div>
-            <time data-audio-time>Loading</time>
-            <audio preload="metadata" src="/sample-hi.wav"></audio>
-          </article>
-          <p>Interactive prerecorded example. Preset synthetic test voices.</p>
+        <div class="column studio-boundary">
+          <p class="truth-boundary"><strong>Where it stands:</strong> a technical alpha with an evidenced English to Hindi short-form test route. Integrated review, secure media handling, and repeatable quality benchmarks remain in development.</p>
+          <a class="button button--light studio-application-link" href="mailto:hello@porus.ai?subject=Authorized%20Porus%20Studio%20test%20clip">Apply to test an authorized clip</a>
         </div>
       </div>
     </section>
 
     <section class="platform-field" id="platform" aria-labelledby="platform-title">
-      <div class="shell platform-head">
-        <h2 id="platform-title">Studio is part of a wider expression layer.</h2>
-        <p>The larger Porus idea is a shared expression foundation for the many ways people learn, create, work, and speak across language.</p>
-      </div>
+      <div class="shell">
+        <div class="column section-head">
+          <h2 id="platform-title">Studio is part of a wider expression layer.</h2>
+          <p>The larger Porus idea is a shared expression foundation for the many ways people learn, create, work, and speak across language.</p>
+        </div>
 
-      <div class="expression-band" aria-label="The Porus expression foundation">
-        <span>Meaning</span><span>Delivery</span><span>Timing</span><span>Identity</span><span>Context</span><span>Human authority</span>
-      </div>
+        <ul class="column column--media expression-band" aria-label="The Porus expression foundation">
+          <li>Meaning</li><li>Delivery</li><li>Timing</li><li>Identity</li><li>Context</li><li>Human authority</li>
+        </ul>
 
-      <div class="shell suite-list">
-        <article class="suite-row"><div><h3>Porus Studio</h3><p>Approval-first localization for spoken media.</p></div><span>Technical alpha</span></article>
-        <article class="suite-row"><div><h3>Porus API</h3><p>Expression-aware capabilities for products and production systems.</p></div><span>Product direction</span></article>
-        <article class="suite-row"><div><h3>Porus Live</h3><p>Consent-aware expression across language boundaries in real time.</p></div><span>Longer horizon</span></article>
-        <article class="suite-row"><div><h3>Porus Archive</h3><p>Paths for preserving and carrying valuable spoken knowledge.</p></div><span>Research direction</span></article>
+        <div class="column column--media suite-list">
+          <article class="suite-row suite-row--current"><div><h3>Porus Studio</h3><p>Approval-first localization for spoken media.</p></div><span>Technical alpha</span></article>
+          <article class="suite-row"><div><h3>Porus API</h3><p>Expression-aware capabilities for products and production systems.</p></div><span>Product direction</span></article>
+          <article class="suite-row"><div><h3>Porus Live</h3><p>Consent-aware expression across language boundaries in real time.</p></div><span>Longer horizon</span></article>
+          <article class="suite-row"><div><h3>Porus Archive</h3><p>Paths for preserving and carrying valuable spoken knowledge.</p></div><span>Research direction</span></article>
+        </div>
       </div>
     </section>
 
     <section class="trust-field" id="trust" aria-labelledby="trust-title">
-      <div class="shell trust-layout">
-        <div>
+      <div class="shell">
+        <div class="column section-head">
           <h2 id="trust-title">A voice belongs to someone.</h2>
           <p>Expression technology should protect agency as seriously as it pursues quality. Porus is being designed around explicit permission, reviewable decisions, provenance, and the right to withhold approval.</p>
         </div>
-        <ul class="trust-principles">
+
+        <ul class="column trust-principles">
           <li><span>Permission</span><strong>before synthesis</strong></li>
           <li><span>Review</span><strong>before release</strong></li>
           <li><span>Provenance</span><strong>after publication</strong></li>
           <li><span>Human authority</span><strong>throughout</strong></li>
         </ul>
-        <p class="trust-note">These are product principles and target architecture, not a claim that every control is released today.</p>
+        <p class="column trust-note">These are product principles and target architecture, not a claim that every control is released today.</p>
       </div>
     </section>
 
     <section class="closing-field" data-closing-field aria-labelledby="closing-title">
       <canvas class="closing-stars" data-closing-stars aria-hidden="true"></canvas>
       <div class="shell closing-layout">
+        <div class="closing-mark" data-closing-mark aria-hidden="true"></div>
         <h2 id="closing-title">Help expression travel farther.</h2>
-        <div>
-          <p>We are looking for thoughtful design partners with authorized short-form media and real localization problems.</p>
-          <button class="button button--light" type="button" data-auth-open>Build with us</button>
-        </div>
+        <p>We are looking for thoughtful design partners with authorized short-form media and real localization problems.</p>
+        <button class="button button--light" type="button" data-auth-open>Build with us</button>
       </div>
     </section>
   </main>
@@ -315,18 +306,18 @@
           <svg class="auth-worlds-svg" viewBox="0 0 800 900" preserveAspectRatio="xMidYMax slice">
             <defs>
               <linearGradient id="authSky" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#0a2130"/>
-                <stop offset="0.55" stop-color="#0b2635"/>
-                <stop offset="1" stop-color="#061a24"/>
+                <stop offset="0" stop-color="#07080b"/>
+                <stop offset="0.55" stop-color="#040507"/>
+                <stop offset="1" stop-color="#000000"/>
               </linearGradient>
               <radialGradient id="authAuroraA" cx="0.35" cy="0.4" r="0.7">
-                <stop offset="0" stop-color="#75e5c8" stop-opacity="0.35"/>
-                <stop offset="0.6" stop-color="#75e5c8" stop-opacity="0.08"/>
-                <stop offset="1" stop-color="#75e5c8" stop-opacity="0"/>
+                <stop offset="0" stop-color="#d4af37" stop-opacity="0.14"/>
+                <stop offset="0.6" stop-color="#d4af37" stop-opacity="0.035"/>
+                <stop offset="1" stop-color="#d4af37" stop-opacity="0"/>
               </radialGradient>
               <radialGradient id="authAuroraB" cx="0.75" cy="0.3" r="0.6">
-                <stop offset="0" stop-color="#b18cff" stop-opacity="0.28"/>
-                <stop offset="1" stop-color="#b18cff" stop-opacity="0"/>
+                <stop offset="0" stop-color="#c9d7ee" stop-opacity="0.12"/>
+                <stop offset="1" stop-color="#c9d7ee" stop-opacity="0"/>
               </radialGradient>
               <radialGradient id="orbSun" cx="0.35" cy="0.35">
                 <stop offset="0" stop-color="#fff6da"/>
@@ -355,11 +346,11 @@
                 <stop offset="1" stop-color="#70d8ed" stop-opacity="0"/>
               </radialGradient>
               <linearGradient id="riverGrad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0" stop-color="#75e5c8" stop-opacity="0"/>
-                <stop offset="0.15" stop-color="#75e5c8" stop-opacity="0.9"/>
-                <stop offset="0.5" stop-color="#a8f4dd"/>
-                <stop offset="0.85" stop-color="#75e5c8" stop-opacity="0.9"/>
-                <stop offset="1" stop-color="#75e5c8" stop-opacity="0"/>
+                <stop offset="0" stop-color="#d4af37" stop-opacity="0"/>
+                <stop offset="0.15" stop-color="#d4af37" stop-opacity="0.9"/>
+                <stop offset="0.5" stop-color="#f0dc9c"/>
+                <stop offset="0.85" stop-color="#d4af37" stop-opacity="0.9"/>
+                <stop offset="1" stop-color="#d4af37" stop-opacity="0"/>
               </linearGradient>
               <filter id="orbGlow" x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur stdDeviation="6" result="blur"/>
@@ -381,7 +372,7 @@
               <circle cx="210" cy="140" r="0.9" fill="#ffffff" opacity="0.7"/>
               <circle cx="270" cy="90"  r="1.7" fill="#ffffff" opacity="1"/>
               <circle cx="330" cy="40"  r="1.0" fill="#ffffff" opacity="0.75"/>
-              <circle cx="380" cy="160" r="1.3" fill="#e7fff6" opacity="0.9"/>
+              <circle cx="380" cy="160" r="1.3" fill="#eef3ff" opacity="0.9"/>
               <circle cx="440" cy="80"  r="1.9" fill="#ffffff" opacity="1"/>
               <circle cx="500" cy="130" r="1.0" fill="#ffffff" opacity="0.7"/>
               <circle cx="560" cy="60"  r="1.4" fill="#ffffff" opacity="0.9"/>
@@ -390,7 +381,7 @@
               <circle cx="740" cy="50"  r="1.0" fill="#ffffff" opacity="0.75"/>
               <circle cx="60"  cy="230" r="1.2" fill="#ffffff" opacity="0.8"/>
               <circle cx="120" cy="290" r="0.9" fill="#ffffff" opacity="0.6"/>
-              <circle cx="200" cy="240" r="1.5" fill="#e7fff6" opacity="0.95"/>
+              <circle cx="200" cy="240" r="1.5" fill="#eef3ff" opacity="0.95"/>
               <circle cx="290" cy="310" r="1.1" fill="#ffffff" opacity="0.75"/>
               <circle cx="360" cy="260" r="0.9" fill="#ffffff" opacity="0.65"/>
               <circle cx="430" cy="330" r="1.4" fill="#ffffff" opacity="0.9"/>
@@ -400,7 +391,7 @@
               <circle cx="720" cy="300" r="1.6" fill="#ffffff" opacity="0.95"/>
               <circle cx="760" cy="220" r="0.9" fill="#ffffff" opacity="0.65"/>
               <circle cx="30"  cy="380" r="1.0" fill="#ffffff" opacity="0.7"/>
-              <circle cx="100" cy="420" r="1.3" fill="#e7fff6" opacity="0.85"/>
+              <circle cx="100" cy="420" r="1.3" fill="#eef3ff" opacity="0.85"/>
               <circle cx="180" cy="380" r="0.9" fill="#ffffff" opacity="0.6"/>
               <circle cx="260" cy="440" r="1.5" fill="#ffffff" opacity="0.95"/>
               <circle cx="350" cy="400" r="1.0" fill="#ffffff" opacity="0.7"/>
@@ -414,7 +405,7 @@
               <circle cx="270" cy="90"  r="4.5" fill="#ffffff" opacity="0.25"/>
               <circle cx="440" cy="80"  r="5"   fill="#ffffff" opacity="0.28"/>
               <circle cx="680" cy="90"  r="4"   fill="#ffffff" opacity="0.22"/>
-              <circle cx="200" cy="240" r="4"   fill="#e7fff6" opacity="0.22"/>
+              <circle cx="200" cy="240" r="4"   fill="#eef3ff" opacity="0.22"/>
               <circle cx="720" cy="300" r="4.5" fill="#ffffff" opacity="0.25"/>
               <circle cx="260" cy="440" r="4"   fill="#ffffff" opacity="0.22"/>
               <circle cx="740" cy="470" r="4.5" fill="#ffffff" opacity="0.25"/>
@@ -423,17 +414,17 @@
             <!-- Mountain ridges (three layers, back to front) -->
             <path class="auth-ridge auth-ridge--3"
               d="M0 650 L90 520 L180 600 L280 470 L370 560 L470 490 L570 580 L660 500 L760 570 L800 540 L800 900 L0 900 Z"
-              fill="#122a37" opacity="0.85"/>
+              fill="#16181d" opacity="0.85"/>
             <path class="auth-ridge auth-ridge--2"
               d="M0 720 L110 620 L220 690 L340 590 L440 670 L560 590 L680 680 L800 640 L800 900 L0 900 Z"
-              fill="#0c1e2a" opacity="0.95"/>
+              fill="#0d0f12" opacity="0.95"/>
             <path class="auth-ridge auth-ridge--1"
               d="M0 790 L120 720 L240 780 L380 700 L500 770 L640 710 L760 780 L800 760 L800 900 L0 900 Z"
-              fill="#071722"/>
+              fill="#060708"/>
 
             <!-- River glow bed -->
-            <ellipse cx="400" cy="814" rx="560" ry="44" fill="#75e5c8" opacity="0.2" filter="url(#riverGlow)"/>
-            <ellipse cx="400" cy="812" rx="470" ry="24" fill="#a8f4dd" opacity="0.26" filter="url(#riverGlow)"/>
+            <ellipse cx="400" cy="814" rx="560" ry="44" fill="#d4af37" opacity="0.16" filter="url(#riverGlow)"/>
+            <ellipse cx="400" cy="812" rx="470" ry="24" fill="#f0dc9c" opacity="0.2" filter="url(#riverGlow)"/>
 
             <!-- Digital river -->
             <g class="auth-river" filter="url(#riverGlow)">
@@ -459,16 +450,16 @@
                 stroke="url(#riverGrad)" stroke-width="2.5" fill="none" opacity="0.95"/>
             </g>
             <g class="auth-river-bits" aria-hidden="true">
-              <rect x="40"  y="798" width="10" height="3" rx="1.5" fill="#a8f4dd"/>
-              <rect x="110" y="820" width="7"  height="3" rx="1.5" fill="#75e5c8"/>
-              <rect x="180" y="810" width="12" height="3" rx="1.5" fill="#a8f4dd"/>
-              <rect x="260" y="832" width="8"  height="3" rx="1.5" fill="#75e5c8"/>
-              <rect x="340" y="804" width="11" height="3" rx="1.5" fill="#a8f4dd"/>
-              <rect x="420" y="840" width="7"  height="3" rx="1.5" fill="#75e5c8"/>
-              <rect x="500" y="814" width="10" height="3" rx="1.5" fill="#a8f4dd"/>
-              <rect x="580" y="836" width="8"  height="3" rx="1.5" fill="#75e5c8"/>
-              <rect x="660" y="806" width="11" height="3" rx="1.5" fill="#a8f4dd"/>
-              <rect x="740" y="826" width="7"  height="3" rx="1.5" fill="#75e5c8"/>
+              <rect x="40"  y="798" width="10" height="3" rx="1.5" fill="#f0dc9c"/>
+              <rect x="110" y="820" width="7"  height="3" rx="1.5" fill="#d4af37"/>
+              <rect x="180" y="810" width="12" height="3" rx="1.5" fill="#f0dc9c"/>
+              <rect x="260" y="832" width="8"  height="3" rx="1.5" fill="#d4af37"/>
+              <rect x="340" y="804" width="11" height="3" rx="1.5" fill="#f0dc9c"/>
+              <rect x="420" y="840" width="7"  height="3" rx="1.5" fill="#d4af37"/>
+              <rect x="500" y="814" width="10" height="3" rx="1.5" fill="#f0dc9c"/>
+              <rect x="580" y="836" width="8"  height="3" rx="1.5" fill="#d4af37"/>
+              <rect x="660" y="806" width="11" height="3" rx="1.5" fill="#f0dc9c"/>
+              <rect x="740" y="826" width="7"  height="3" rx="1.5" fill="#d4af37"/>
             </g>
 
             <!-- Foreground floor mist -->
