@@ -19,9 +19,17 @@
 <body class="app-body">
   <a class="skip-link" href="#main">Skip to content</a>
 
+  <div class="sky" aria-hidden="true">
+    <div class="sky-wash sky-wash--warm"></div>
+    <div class="sky-wash sky-wash--cool"></div>
+    <div class="aurora aurora--one"></div>
+    <div class="aurora aurora--two"></div>
+    <div class="aurora aurora--three"></div>
+  </div>
+
   <header class="app-header">
     <div class="shell app-header-inner">
-      <a class="brand" href="/" aria-label="Porus.ai home">
+      <a class="brand app-brand" href="/" aria-label="Porus.ai home">
         <img class="brand-lockup" src="/logo.svg?v=7" alt="Porus.ai" width="382" height="93">
       </a>
       <div class="app-header-actions">
@@ -36,8 +44,8 @@
     <div class="shell app-shell">
       <section class="app-intro" data-drift>
         <span class="app-eyebrow">Creator</span>
-        <h1>Upload English. Get Hindi back in the same voice.</h1>
-        <p class="app-lede">Fully automated, self-serve dubbing. No one reviews your clip by hand — every stage below runs on its own.</p>
+        <h1>Upload in English, and hear yourself speak Hindi.</h1>
+        <p class="app-lede">Fully automated, self-serve dubbing — no one reviews your clip by hand. Every stage below carries your voice across, on its own.</p>
       </section>
 
       <section class="upload-card" aria-labelledby="upload-title">
@@ -45,10 +53,12 @@
 
         <div class="dropzone" data-dropzone tabindex="0" role="button" aria-describedby="dropzone-hint">
           <input class="dropzone-input sr-only" type="file" accept="video/*" data-file-input aria-label="Choose a video file to dub">
-          <svg class="dropzone-icon" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4">
-            <path d="M12 16V4m0 0 4 4m-4-4-4 4" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M4 16v2.5A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V16" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <span class="dropzone-icon-ring" aria-hidden="true">
+            <svg class="dropzone-icon" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M12 16V4m0 0 4 4m-4-4-4 4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 16v2.5A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V16" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
           <p class="dropzone-title">Drop a video, or click to choose one</p>
           <p class="dropzone-hint" id="dropzone-hint">MP4 or MOV, English speech, up to a few minutes. Nothing leaves your browser in this preview.</p>
           <p class="dropzone-file" data-dropzone-file hidden></p>
@@ -97,24 +107,27 @@
         <span class="job-status" data-job-status></span>
       </header>
 
-      <ol class="pipeline-steps" data-pipeline-steps>
-        <li class="pipeline-step" data-step="separate">
-          <span class="pipeline-step-dot" aria-hidden="true"></span>
-          <span class="pipeline-step-label">Separate</span>
-        </li>
-        <li class="pipeline-step" data-step="translate">
-          <span class="pipeline-step-dot" aria-hidden="true"></span>
-          <span class="pipeline-step-label">Translate</span>
-        </li>
-        <li class="pipeline-step" data-step="voice">
-          <span class="pipeline-step-dot" aria-hidden="true"></span>
-          <span class="pipeline-step-label">Fit and voice</span>
-        </li>
-        <li class="pipeline-step" data-step="check">
-          <span class="pipeline-step-dot" aria-hidden="true"></span>
-          <span class="pipeline-step-label">Check and deliver</span>
-        </li>
-      </ol>
+      <div class="pipeline-visual" data-pipeline-visual>
+        <canvas class="pipeline-canvas" data-pipeline-canvas aria-hidden="true"></canvas>
+        <ol class="pipeline-steps" data-pipeline-steps style="--progress: 0">
+          <li class="pipeline-step" data-step="separate">
+            <span class="pipeline-step-dot" aria-hidden="true"></span>
+            <span class="pipeline-step-label">Separate</span>
+          </li>
+          <li class="pipeline-step" data-step="translate">
+            <span class="pipeline-step-dot" aria-hidden="true"></span>
+            <span class="pipeline-step-label">Translate</span>
+          </li>
+          <li class="pipeline-step" data-step="voice">
+            <span class="pipeline-step-dot" aria-hidden="true"></span>
+            <span class="pipeline-step-label">Fit and voice</span>
+          </li>
+          <li class="pipeline-step" data-step="check">
+            <span class="pipeline-step-dot" aria-hidden="true"></span>
+            <span class="pipeline-step-label">Check and deliver</span>
+          </li>
+        </ol>
+      </div>
 
       <div class="job-report" data-job-report hidden>
         <div class="job-report-grid">

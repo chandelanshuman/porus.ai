@@ -126,6 +126,213 @@
     { key: "check", duration: 900 }
   ];
 
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* Pipeline starfield — each stage is a gravity well ("black hole"). A burst
+     of stars erupts from the stage that just went active, spirals across,
+     and gets pulled into the next stage's well right as that stage lights
+     up — then that well erupts its own burst toward the one after it, and
+     so on down the line until the last stage swallows the final burst. */
+
+  const STAR_COLORS = [
+    [199, 241, 229], // aqua
+    [245, 217, 168], // gold
+    [188, 169, 244] // violet
+  ];
+
+  function seededRandom(seed) {
+    let state = seed >>> 0;
+    return () => {
+      state += 0x6d2b79f5;
+      let value = state;
+      value = Math.imul(value ^ (value >>> 15), value | 1);
+      value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+      return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function easeInStrong(t) {
+    return t * t * t;
+  }
+
+  function createPipelineStarfield(canvas, anchorCount) {
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+
+    const PARTICLES_PER_BURST = 100;
+    const anchorFracs = Array.from({ length: anchorCount }, (_, i) => i / (anchorCount - 1));
+    const random = seededRandom((Date.now() ^ 0x9e3779b9) >>> 0);
+
+    let width = 0;
+    let height = 0;
+    let particles = [];
+    let rafId = 0;
+    let running = false;
+    let activeIndex = -1;
+
+    function anchorPoint(index) {
+      return { x: anchorFracs[index] * width, y: height / 2 };
+    }
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      width = Math.max(1, rect.width);
+      height = Math.max(1, rect.height);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    // A burst travels from stage `fromIndex` toward `toIndex` (or settles in
+    // place if `toIndex` is null, for the final stage). Its base path is a
+    // straight interpolation timed to `duration`, so it reliably arrives
+    // exactly when the destination stage goes active — a spiral wobble on
+    // top (wide at the source, tightening to nothing at the target) is what
+    // actually reads as "erupting out, then pulled in and swallowed."
+    function setActive(index) {
+      activeIndex = index;
+    }
+
+    function burst(fromIndex, toIndex, duration) {
+      const now = performance.now();
+      for (let i = 0; i < PARTICLES_PER_BURST; i += 1) {
+        const tint = random();
+        particles.push({
+          fromIndex,
+          toIndex,
+          // Spread across the whole stage so the stream is continuous —
+          // always some stars near the source, some mid-flight, some
+          // arriving — rather than one clump moving together.
+          spawnAt: now + random() * duration * 0.8,
+          duration: 380 + random() * 260,
+          swirlAmp: 3 + random() * 8,
+          swirlPhase: random() * Math.PI * 2,
+          spinSpeed: (random() < 0.5 ? -1 : 1) * (2.2 + random() * 1.8),
+          radius: 0.5 + random() * 0.8,
+          depth: 0.4 + random() * 0.6,
+          color: STAR_COLORS[tint < 0.55 ? 0 : tint < 0.82 ? 1 : 2]
+        });
+      }
+    }
+
+    function drawWell(point, strength, color) {
+      if (strength <= 0.02) return;
+      const radius = 8 + strength * 7;
+      const gradient = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, radius);
+      gradient.addColorStop(0, `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${0.4 * strength})`);
+      gradient.addColorStop(1, `rgba(${color[0]}, ${color[1]}, ${color[2]}, 0)`);
+      context.fillStyle = gradient;
+      context.beginPath();
+      context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+      context.fill();
+    }
+
+    function step(now) {
+      if (!running) return;
+      context.clearRect(0, 0, width, height);
+      context.save();
+      context.globalCompositeOperation = "lighter";
+
+      const pulse = 0.85 + Math.sin(now / 260) * 0.15;
+      anchorFracs.forEach((_frac, i) => {
+        const point = anchorPoint(i);
+        if (i === activeIndex) {
+          drawWell(point, pulse, STAR_COLORS[1]);
+        } else if (i < activeIndex) {
+          drawWell(point, 0.4, STAR_COLORS[0]);
+        } else {
+          drawWell(point, 0.12, STAR_COLORS[0]);
+        }
+      });
+
+      particles = particles.filter((particle) => {
+        const elapsed = now - particle.spawnAt;
+        if (elapsed < 0) return true;
+        const progress = Math.min(1, elapsed / particle.duration);
+
+        const from = anchorPoint(particle.fromIndex);
+        const angle = particle.swirlPhase + (now / 1000) * particle.spinSpeed;
+        let x;
+        let y;
+
+        if (particle.toIndex === null) {
+          // No destination (the final stage) — orbit the well in place,
+          // the loop tightening down to nothing as it gets swallowed.
+          const decay = Math.max(0, 1 - progress);
+          x = from.x + Math.cos(angle) * particle.swirlAmp * decay;
+          y = from.y + Math.sin(angle) * particle.swirlAmp * decay * 0.6;
+        } else {
+          const to = anchorPoint(particle.toIndex);
+          const eased = easeInStrong(progress);
+          const baseX = from.x + (to.x - from.x) * eased;
+          const baseY = from.y + (to.y - from.y) * eased;
+
+          // Perpendicular spiral: wide near the source (the burst), narrowing
+          // to zero at the target (getting pulled in and swallowed).
+          const dx = to.x - from.x;
+          const dy = to.y - from.y;
+          const pathLength = Math.hypot(dx, dy) || 1;
+          const perpX = -dy / pathLength;
+          const perpY = dx / pathLength;
+          const spiralEnvelope = Math.max(0, 1 - eased);
+          const wobble = Math.sin(angle) * particle.swirlAmp * spiralEnvelope;
+
+          x = baseX + perpX * wobble;
+          y = baseY + perpY * wobble;
+        }
+
+        const fadeIn = Math.min(1, progress * 10);
+        const fadeOut = Math.min(1, (1 - progress) * 8);
+        const flash = progress > 0.9 ? 1 + (progress - 0.9) * 6 : 1;
+        const alpha = fadeIn * fadeOut * (0.55 + particle.depth * 0.45);
+
+        if (alpha > 0.015) {
+          const glowRadius = particle.radius * 3.2 * flash;
+          const glow = context.createRadialGradient(x, y, 0, x, y, glowRadius);
+          glow.addColorStop(0, `rgba(${particle.color[0]}, ${particle.color[1]}, ${particle.color[2]}, ${Math.min(1, alpha * 0.9)})`);
+          glow.addColorStop(1, `rgba(${particle.color[0]}, ${particle.color[1]}, ${particle.color[2]}, 0)`);
+          context.fillStyle = glow;
+          context.beginPath();
+          context.arc(x, y, glowRadius, 0, Math.PI * 2);
+          context.fill();
+
+          context.fillStyle = `rgba(${particle.color[0]}, ${particle.color[1]}, ${particle.color[2]}, ${Math.min(1, alpha + 0.15)})`;
+          context.beginPath();
+          context.arc(x, y, particle.radius * flash, 0, Math.PI * 2);
+          context.fill();
+        }
+
+        return progress < 1;
+      });
+
+      context.restore();
+      rafId = requestAnimationFrame(step);
+    }
+
+    function start() {
+      if (running) return;
+      resize();
+      particles = [];
+      running = true;
+      rafId = requestAnimationFrame(step);
+    }
+
+    function stop() {
+      running = false;
+      if (rafId) window.cancelAnimationFrame(rafId);
+      rafId = 0;
+      particles = [];
+      context.clearRect(0, 0, width, height);
+    }
+
+    window.addEventListener("resize", () => {
+      if (running) resize();
+    }, { passive: true });
+
+    return { start, stop, burst, setActive };
+  }
+
   const jobListEl = document.querySelector("[data-job-list]");
   const jobEmptyEl = document.querySelector("[data-job-empty]");
   const jobTemplate = document.querySelector("[data-job-template]");
@@ -191,20 +398,37 @@
 
   function runPipeline(card, job) {
     setJobStatus(card, "Processing");
+    const pipelineEl = card.querySelector("[data-pipeline-steps]");
+    const visualEl = card.querySelector("[data-pipeline-visual]");
+    const canvasEl = card.querySelector("[data-pipeline-canvas]");
+    const starfield = !prefersReducedMotion && canvasEl
+      ? createPipelineStarfield(canvasEl, PIPELINE_STEPS.length)
+      : null;
+
+    if (starfield) {
+      visualEl?.classList.add("has-starfield");
+      starfield.start();
+    }
+
     let index = 0;
 
     function advance() {
       if (index >= PIPELINE_STEPS.length) {
+        starfield?.stop();
         completeJob(card, job);
         return;
       }
       const step = PIPELINE_STEPS[index];
       const stepEl = card.querySelector(`[data-step="${step.key}"]`);
       stepEl?.classList.add("is-active");
+      const nextIndex = index + 1 < PIPELINE_STEPS.length ? index + 1 : null;
+      starfield?.setActive(index);
+      starfield?.burst(index, nextIndex, step.duration);
       window.setTimeout(() => {
         stepEl?.classList.remove("is-active");
         stepEl?.classList.add("is-done");
         index += 1;
+        pipelineEl?.style.setProperty("--progress", String(index / PIPELINE_STEPS.length));
         advance();
       }, step.duration);
     }
