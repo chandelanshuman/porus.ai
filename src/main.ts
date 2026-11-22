@@ -2201,7 +2201,7 @@
 
   const copy = {
     signin: {
-      title: "Enter the studio",
+      title: "Enter Porus Revoice",
       sub: "Sign in with the account you use for authorized clip access.",
     },
     signup: {

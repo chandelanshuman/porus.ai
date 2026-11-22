@@ -6,7 +6,7 @@
 
   const session = readSession();
   if (!session) {
-    window.location.replace("/");
+    window.location.replace("/PorusRevoice/");
     return;
   }
 
@@ -54,7 +54,7 @@
     } catch {
       /* ignore */
     }
-    window.location.href = "/";
+    window.location.href = "/PorusRevoice/";
   });
 
   /* Upload */

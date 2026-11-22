@@ -17,6 +17,33 @@ describe("porus.ai bundle contract", () => {
     expect(opens.length).toBe(3);
   });
 
+  it("keeps the original story and separates the model from Revoice", () => {
+    const home = readFileSync(resolve(root, "index.html"), "utf8");
+    const revoice = readFileSync(resolve(root, "PorusRevoice/index.html"), "utf8");
+    const story = ['class="kinetic-words"', 'id="mission"', 'class="loss-field"', 'class="passage-intro"', 'id="demo"'];
+    let previous = -1;
+    for (const marker of story) {
+      const position = home.indexOf(marker);
+      expect(position).toBeGreaterThan(previous);
+      previous = position;
+    }
+    expect(home).toContain('id="porus-ai"');
+    expect(home).toContain('href="/PorusRevoice/"');
+    expect(revoice).toContain('href="/#porus-ai"');
+    expect(revoice).toContain('data-rv-studio');
+    expect(revoice).toContain('id="compare"');
+    expect(revoice).toContain('src="/sample-hi.wav"');
+    expect(home).toContain('href="/src/styles.css"');
+    expect(home).toContain('src="/src/main.ts"');
+    expect(revoice).toContain('href="/src/revoice.css"');
+    expect(revoice).not.toContain('href="/src/styles.css"');
+    expect(revoice).not.toContain('src="/src/main.ts"');
+    for (const html of [home, revoice]) {
+      expect(html).not.toContain('marketing.css');
+      expect(html).not.toContain('Porus Studio');
+    }
+  });
+
   it("styles.css defines the shared glass tokens", () => {
     const css = readFileSync(resolve(root, "src/styles.css"), "utf8");
     for (const token of ["--glass-bg", "--glass-border", "--glass-blur", "--r-pill"]) {

@@ -2,7 +2,19 @@
 
 The global company homepage for Porus.ai, positioned as the human expression company.
 
-The site presents Porus as a long-term product company while keeping the present boundary explicit: Porus Studio is a technical alpha with one evidenced English to Hindi short-form test route, and the wider suite is a roadmap.
+The site presents Porus as a long-term product company while keeping the present boundary explicit: Porus Revoice is a technical alpha with one evidenced English to Hindi short-form test route, and the wider suite is a roadmap.
+
+## Website structure
+
+- `/`: the Porus company and Porus AI speech-to-speech foundation model.
+- `/PorusRevoice/`: the dedicated Porus Revoice dubbing product page.
+- `/app.html`: the existing Creator interface preview.
+
+Porus Revoice is a standalone black-and-gold product showcase: an animated spiral galaxy and gold starfield, voice samples, an interactive studio concept, production use cases, and a sourced market comparison. Its product assets are isolated in `src/revoice*.css` and `src/revoice*.js`; the Porus AI homepage retains its own `src/styles.css` and `src/main.ts` unchanged.
+
+The studio concept supports sample listening, seeking, local script editing, and audio/script downloads. It uses prerecorded synthetic samples; no dubbing backend is connected. Competitor claims are linked to official documentation and dated in the comparison section.
+
+The Revoice directory is a Vite build entry; `/PorusRevoice` redirects to `/PorusRevoice/` locally and uses the directory index on GitHub Pages. Both pages reuse the existing fonts and favicon.
 
 ## Local preview
 

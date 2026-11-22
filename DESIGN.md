@@ -1,6 +1,40 @@
 # Porus.ai design system
 
-Status: active global-company website direction, August 2026.
+Status: original visual identity preserved; brand/page separation updated November 2026.
+
+## Current page boundaries — 22 November 2026
+
+The Porus AI homepage is frozen for this iteration. Preserve its original colors, type, aurora, starfield, kinetic hero, history sequence, cinematic passage, navigation, and auth animations. Its hero retains “Build with us” and “Explore Porus Revoice”.
+
+Porus Revoice now has an explicitly separate product-launch identity, requested by the user. It does not import the homepage's `styles.css` or `main.ts`.
+
+### Porus Revoice: black and Porus Gold
+
+- Background: near-black `#080706`; primary accent and wordmark: original Porus Gold `#e8a33d`.
+- Cream text, bronze surfaces, gold borders and highlights. All product sections, comparisons, and studio controls belong to this palette.
+- Large Manrope product headlines; Newsreader accents for the human voice.
+- A rotating, three-arm gold galaxy sits beside the product headline on desktop and below it on mobile. The atmosphere control and reduced-motion preference freeze the starfield.
+- Product-launch narrative: reveal → highlights → listen → interactive studio → production direction → use cases → Porus AI inside → market comparison → questions → demo inquiry.
+- Inspiration: product-reveal pacing of Apple’s iPhone pages and the immersive showcase direction requested from OpenAI’s Astra page. No third-party visuals or copy are reproduced.
+
+The product uses `revoice.css`, `revoice-studio.css`, `revoice.js`, `revoice-launch.js`, and `revoice-astro.js`. The studio concept supports source/rendition listening, seeking, keyboard-accessible tabs, local script editing, and sample downloads. Editing the script does not synthesize audio. One audio element plays at a time across the voice showcase and studio.
+
+### Comparison provenance
+
+The on-page comparison links to official sources, reviewed 22 November 2026:
+
+- [ElevenLabs Dubbing](https://elevenlabs.io/docs/overview/capabilities/dubbing): audio/video focus, 90+ languages, v2 Alpha and legacy v1 distinction.
+- [ElevenLabs Dubbing Studio](https://elevenlabs.io/docs/eleven-creative/products/dubbing/dubbing-studio): transcript edits, speaker assignment, clip regeneration, maintenance mode.
+- [HeyGen Video Translation](https://www.heygen.com/translate): translated video, lip sync, subtitles, advertised 175+ languages.
+- [HeyGen Proofreader](https://www.heygen.com/en-gb/academy/proofread): script/voice review before final generation.
+
+Compare documented workflows without claiming measured quality superiority. Explicitly identify Porus Revoice's technical-alpha concept and the demonstrated English-to-Hindi route. Recheck sources before publication; do not turn planned features into released claims.
+
+### Validation
+
+Test the real product page in desktop and mobile browsers: no page overflow or console errors; voice samples do not overlap; studio tabs, editing, and downloads work; the comparison scrolls horizontally within its container on mobile. Verify reduced-motion and atmosphere controls. Confirm homepage checksums are unchanged.
+
+The original design reference below applies to the **Porus AI homepage**. The product-specific direction above supersedes it only for `/PorusRevoice/`.
 
 ## 1. Design thesis
 
