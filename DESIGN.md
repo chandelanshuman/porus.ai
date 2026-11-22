@@ -143,6 +143,8 @@ Only one horizontal narrative is allowed per page. Do not add marquees or a seco
 
 Stars begin as seeded, faint points. Their outward velocity rises with the lateral history passage, continues unseen behind the bright loss chapter, and is already legible when the next-frontier chapter arrives. It then peaks sharply before the demo and lands as the cinematic scene fills the viewport. A shorter inward passage marks the exit.
 
+The warp carries momentum rather than tracking scroll exactly, and reads in depth layers: nearer stars move faster with longer streaks, tails cool slightly, and stars reborn at the vanishing point fade in.
+
 The warp belongs only to the history-to-language journey. It must not continue into the product and trust chapters or become a generic full-page background effect.
 
 ### Language passage

@@ -1049,7 +1049,9 @@
     pointerTargetX: 0,
     pointerTargetY: 0,
     convergence: null,
-    manualWarp: null
+    manualWarp: null,
+    warpSigned: 0,
+    warpSettling: false
   };
 
   const STAR_CONVERGENCE_DURATION = 920;
@@ -1069,6 +1071,7 @@
         phase: random() * Math.PI * 2,
         speed: 0.24 + random() * 0.9,
         depth: 0.28 + random() * 0.72,
+        fade: 1,
         color: tint < 0.75 ? [255, 255, 255] : tint < 0.91 ? [190, 255, 224] : [168, 224, 255]
       };
     });
@@ -1276,9 +1279,15 @@
     if (reduceMotion && starState.staticDrawn) return;
 
     const seconds = now / 1000;
-    const warp = warpAt(scrollY);
     const frameScale = starState.lastPaint ? clamp((now - starState.lastPaint) / 30, 0.45, 2.2) : 1;
     starState.lastPaint = now;
+    // The warp carries momentum: it eases toward the scroll target and passes through rest before reversing.
+    const target = warpAt(scrollY);
+    const targetSigned = target.direction * target.amount;
+    starState.warpSigned += (targetSigned - starState.warpSigned) * (1 - Math.pow(0.86, frameScale));
+    if (Math.abs(targetSigned - starState.warpSigned) < 0.0005) starState.warpSigned = targetSigned;
+    starState.warpSettling = starState.warpSigned !== targetSigned;
+    const warp = { amount: Math.abs(starState.warpSigned), direction: starState.warpSigned < 0 ? -1 : 1 };
     const centreX = width / 2;
     const centreY = height / 2;
     const farthest = Math.hypot(centreX, centreY);
@@ -1357,8 +1366,22 @@
       return;
     }
 
+    if (warp.amount > 0.02) {
+      const glow = warp.amount * warp.amount;
+      const core = context.createRadialGradient(centreX, centreY, 0, centreX, centreY, farthest * 0.34);
+      core.addColorStop(0, `rgba(212,255,242,${0.1 * glow})`);
+      core.addColorStop(0.4, `rgba(117,229,200,${0.035 * glow})`);
+      core.addColorStop(1, "rgba(112,216,237,0)");
+      context.fillStyle = core;
+      context.fillRect(0, 0, width, height);
+    }
+
+    const rush = smoothstep(warp.amount / 0.6);
+    const headLight = smoothstep((warp.amount - 0.3) / 0.4);
+
     stars.forEach((star, index) => {
       const pointerOffset = starPointerOffset(star);
+      const depth = star.depth || 0.5;
       let x = star.x * width + pointerOffset.x;
       let y = star.y * height + pointerOffset.y;
       let dx = x - centreX;
@@ -1367,19 +1390,23 @@
       let edge = distance / farthest;
 
       if (warp.amount > 0.012) {
-        const velocity = warp.direction * warp.amount * warp.amount * (0.6 + edge * 6.4) * frameScale;
-        star.x += (dx / distance) * velocity / width;
-        star.y += (dy / distance) * velocity / height;
+        // Nearer stars travel faster and curl slightly, so the tunnel reads in layers rather than one sheet.
+        const velocity = warp.direction * warp.amount * warp.amount * (0.6 + edge * 6.4) * mix(0.55, 1.35, depth) * frameScale;
+        const curl = velocity * 0.07 * warp.amount;
+        star.x += ((dx / distance) * velocity - (dy / distance) * curl) / width;
+        star.y += ((dy / distance) * velocity + (dx / distance) * curl) / height;
 
         if (warp.direction > 0 && (star.x < -0.06 || star.x > 1.06 || star.y < -0.06 || star.y > 1.06)) {
           const angle = (index * 2.399963 + seconds * 0.7) % (Math.PI * 2);
           const radius = 0.035 + ((index * 17) % 90) / 900;
           star.x = 0.5 + Math.cos(angle) * radius;
           star.y = 0.5 + Math.sin(angle) * radius;
+          star.fade = 0;
         } else if (warp.direction < 0 && edge < 0.045) {
           const angle = (index * 2.399963 + seconds * 0.3) % (Math.PI * 2);
           star.x = 0.5 + Math.cos(angle) * 0.57;
           star.y = 0.5 + Math.sin(angle) * 0.57;
+          star.fade = 0;
         }
 
         x = star.x * width + pointerOffset.x;
@@ -1389,28 +1416,34 @@
         distance = Math.hypot(dx, dy) || 1;
         edge = distance / farthest;
       }
+      // Respawned stars fade in instead of popping into view.
+      star.fade = Math.min(1, star.fade + 0.05 * frameScale);
 
       const twinkle = reduceMotion ? 0.85 : 0.72 + 0.28 * Math.sin(seconds * star.speed + star.phase);
-      const alpha = star.alpha * twinkle * (1 + warp.amount * 0.7);
-      const streak = warp.amount * warp.amount * edge * 155;
+      // A star stretched at speed holds steady rather than flickering.
+      const alpha = star.alpha * mix(twinkle, 0.92, rush) * (1 + warp.amount * 0.7) * star.fade;
+      const streak = warp.amount * warp.amount * edge * 155 * mix(0.6, 1.3, depth);
 
       if (streak > 1.6) {
         const startX = x - warp.direction * (dx / distance) * streak;
         const startY = y - warp.direction * (dy / distance) * streak;
-        if (warp.amount < 0.55) {
-          context.strokeStyle = rgb(star.color, Math.min(0.34, alpha * 0.58));
-        } else {
-          const gradient = context.createLinearGradient(startX, startY, x, y);
-          gradient.addColorStop(0, rgb(star.color, 0));
-          gradient.addColorStop(1, rgb(star.color, Math.min(0.96, alpha)));
-          context.strokeStyle = gradient;
-        }
-        context.lineWidth = star.radius * (1 + warp.amount * 0.8);
+        const gradient = context.createLinearGradient(startX, startY, x, y);
+        gradient.addColorStop(0, rgb(mixColor(star.color, [150, 190, 255], warp.amount * 0.6), 0));
+        gradient.addColorStop(0.6, rgb(star.color, Math.min(0.5, alpha * mix(0.58, 0.45, rush))));
+        gradient.addColorStop(1, rgb(star.color, Math.min(0.96, alpha)));
+        context.strokeStyle = gradient;
+        context.lineWidth = star.radius * (1 + warp.amount * 0.8) * mix(0.8, 1.25, depth);
         context.lineCap = "round";
         context.beginPath();
         context.moveTo(startX, startY);
         context.lineTo(x, y);
         context.stroke();
+        if (headLight > 0) {
+          context.fillStyle = rgb([255, 255, 255], Math.min(0.9, alpha * headLight));
+          context.beginPath();
+          context.arc(x, y, star.radius * mix(0.7, 1.1, depth), 0, Math.PI * 2);
+          context.fill();
+        }
       } else {
         context.fillStyle = rgb(star.color, alpha);
         context.beginPath();
@@ -2011,7 +2044,7 @@
       starState.pointerY += (starState.pointerTargetY - starState.pointerY) * 0.045;
     }
 
-    const starFrameInterval = scrolling || starState.convergence || starState.manualWarp || starPointerMoving ? 15 : 30;
+    const starFrameInterval = scrolling || starState.convergence || starState.manualWarp || starState.warpSettling || starPointerMoving ? 15 : 30;
     if (now - lastStarFrame >= starFrameInterval || reduceMotion) {
       paintStars(now, cachedScrollY);
       lastStarFrame = now;

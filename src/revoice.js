@@ -8,6 +8,8 @@ if (studio) {
   const track = studio.querySelector('[data-rv-track]');
   const seek = studio.querySelector('[data-rv-seek]');
   const time = studio.querySelector('[data-rv-time]');
+  const lane = studio.querySelector('[data-rv-lane]');
+  const ticks = studio.querySelectorAll('[data-rv-tick]');
   const status = studio.querySelector('[data-rv-status]');
   const line = studio.querySelector('[data-rv-line]');
   const editStatus = studio.querySelector('[data-rv-edit-status]');
@@ -46,7 +48,14 @@ if (studio) {
     play.textContent = playing ? 'Pause' : 'Play sample';
     play.setAttribute('aria-label', `${playing ? 'Pause' : 'Play'} ${language === 'en' ? 'English source' : 'Hindi rendition'} sample`);
     time.textContent = `${format(current.currentTime)} / ${format(current.duration)}`;
-    seek.value = Number.isFinite(current.duration) && current.duration > 0 ? String(current.currentTime / current.duration * 100) : '0';
+    const progress = Number.isFinite(current.duration) && current.duration > 0
+      ? current.currentTime / current.duration * 100 : 0;
+    seek.value = String(progress);
+    lane?.style.setProperty('--rv-progress', `${progress}%`);
+    for (const tick of ticks ?? []) {
+      const seconds = current.duration * Number(tick.dataset.rvTick);
+      tick.textContent = Number.isFinite(seconds) ? seconds.toFixed(1) + 's' : '';
+    }
   }
   languageButtons.forEach(button => button.addEventListener('click', () => {
     stop(); language = button.dataset.rvLanguage;
@@ -54,6 +63,12 @@ if (studio) {
     caption.textContent = language === 'en' ? english : `“${originalLine}”`;
     caption.lang = language;
     track.textContent = language === 'en' ? 'Source voice' : 'Hindi rendition';
+    const preview = document.querySelector(`[data-launch-audio="${language}"]`)?.closest?.('[data-take]');
+    const peaks = preview?.querySelectorAll('.rl-preview-wave i');
+    studio.querySelector('[data-rv-wave]')?.querySelectorAll('i').forEach((bar, index) => {
+      const peak = peaks?.[index]?.style.getPropertyValue('--peak');
+      if (peak) bar.style.setProperty('--rv-height', peak);
+    });
     status.textContent = 'Press play to hear the selected sample.';
     update();
   }));

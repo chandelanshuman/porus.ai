@@ -1,5 +1,12 @@
 # Porus.ai website change history
 
+## Warp depth and Revoice star journey, November 2026
+
+- Gave the history-to-language warp momentum, so it eases toward the scroll position and comes to rest before reversing at the exit.
+- Layered the warp by depth: nearer stars travel faster with longer, thicker streaks, the tunnel curls slightly, streak tails cool toward blue, heads brighten at speed, and a faint glow marks the vanishing point.
+- Respawned warp stars now fade in rather than popping into view, and the hard switch between flat and gradient streaks is gone.
+- On Porus Revoice, the settled craft-section stars now fly into a full-ring eclipse that brightens and pulses, then carry on into the Porus AI chip, which powers up with a heartbeat pulse across its die and circuit grid.
+
 ## Cinematic company journey, August 2026
 
 - Re-timed the seeded starfield so velocity begins with the horizontal human-history passage, carries behind the bright loss chapter, and returns already moving in the next-frontier section before landing in the language scene.
