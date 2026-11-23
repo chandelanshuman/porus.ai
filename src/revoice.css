@@ -696,3 +696,28 @@
 
 .atmosphere-paused .rl-chip > div::after,
 .atmosphere-paused .rl-chip::before { animation-play-state: paused; }
+
+.rl-footer-social {
+  display: flex;
+  gap: 18px;
+}
+
+.rl-footer-social a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: .8rem;
+  transition: color 180ms ease;
+}
+
+.rl-footer-social svg {
+  width: 16px;
+  height: 16px;
+}
+
+.rl-footer-social a:hover,
+.rl-footer-social a:focus-visible { color: #e8a33d; }
+
+@media (max-width: 760px) {
+  .rl-footer-social { width: 100%; }
+}
